@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Bot, Download, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { BookOpen, Bot, Download, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Puzzle, Redo2, Settings2, Trash2, Undo2, Upload } from "lucide-react";
 import { Button, Dropdown, Modal, Tooltip } from "antd";
 import { useTranslation } from "react-i18next";
 
-import { UserStatusActions } from "@/components/layout/user-status-actions";
+import { useConfigStore } from "@/stores/use-config-store";
+import type { ReactNode } from "react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -31,6 +32,7 @@ export function CanvasTopBar({
     agentOpen,
     compactAgentStatus,
     onToggleAgent,
+    sceneSwitcher,
 }: {
     title: string;
     titleDraft: string;
@@ -53,6 +55,7 @@ export function CanvasTopBar({
     agentOpen: boolean;
     compactAgentStatus: { connected: boolean; enabled: boolean; activity: string };
     onToggleAgent: () => void;
+    sceneSwitcher?: ReactNode;
 }) {
     const colorTheme = useThemeStore((state) => state.theme);
     const { t } = useTranslation();
@@ -61,6 +64,7 @@ export function CanvasTopBar({
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
     const sidePanelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
     const toggleSidePanel = useCanvasSidePanelStore((state) => state.togglePanel);
+    const openConfig = useConfigStore((state) => state.openConfigDialog);
 
     useEffect(() => {
         if (!isTitleEditing) return;
@@ -73,8 +77,8 @@ export function CanvasTopBar({
 
     return (
         <>
-            <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between pl-1 pr-4">
-                <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+            <div className="canvas-topbar" data-canvas-no-zoom>
+                <div className="canvas-topbar-primary">
                     <Tooltip title={sidePanelOpen ? t("canvas.collapsePanel") : t("canvas.expandPanel")}>
                         <button
                             type="button"
@@ -93,6 +97,8 @@ export function CanvasTopBar({
                                 { key: "home", icon: <Home className="size-4" />, label: t("canvas.home"), onClick: onHome },
                                 { key: "docs", icon: <BookOpen className="size-4" />, label: t("canvas.docs"), onClick: () => window.open(DOCS_URL, "_blank", "noopener,noreferrer") },
                                 { key: "projects", icon: <Images className="size-4" />, label: t("canvas.projects"), onClick: onProjects },
+                                { key: "plugins", icon: <Puzzle className="size-4" />, label: t("topNav.plugins"), onClick: onOpenPlugins },
+                                { key: "shortcuts", label: t("canvas.shortcuts"), onClick: () => setShortcutsOpen(true) },
                                 { type: "divider" },
                                 { key: "new", icon: <Plus className="size-4" />, label: t("canvas.create"), onClick: onCreateProject },
                                 { key: "delete", danger: true, icon: <Trash2 className="size-4" />, label: t("canvas.deleteCurrent"), onClick: onDeleteProject },
@@ -110,7 +116,8 @@ export function CanvasTopBar({
                         </button>
                     </Dropdown>
 
-                    <div ref={titleRef} className="flex min-w-0 items-center gap-2">
+                    <span className="canvas-topbar-brand text-sm font-semibold" style={{ color: theme.node.activeStroke }}>HuaBu</span>
+                    <div ref={titleRef} className="canvas-topbar-title">
                         {isTitleEditing ? (
                             <input
                                 autoFocus
@@ -135,21 +142,23 @@ export function CanvasTopBar({
                             </button>
                         )}
                     </div>
-                    <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} />
+                    {sceneSwitcher}
+                    <span className="canvas-agent-status"><CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /></span>
                 </div>
 
-                <div className="pointer-events-auto flex items-center gap-1.5">
-                    <UserStatusActions variant="canvas" onOpenShortcuts={() => setShortcutsOpen(true)} onOpenPlugins={onOpenPlugins} />
-                    <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
+                <div className="canvas-topbar-actions">
+                    <Tooltip title="创作设置">
+                        <Button type="text" aria-label="创作设置" icon={<Settings2 size={17} />} onClick={() => openConfig(false)} />
+                    </Tooltip>
                     <Button
                         type="text"
-                        className="!h-10 !rounded-xl !px-3 !font-medium"
-                        style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
+                        aria-label="画布 Agent"
+                        title="画布 Agent"
+                        className="!h-8 !w-8 !p-0"
+                        style={{ background: agentOpen ? theme.toolbar.activeBg : undefined, color: theme.node.text }}
                         icon={<Bot className="size-4" />}
                         onClick={onToggleAgent}
-                    >
-                        Agent
-                    </Button>
+                    />
                 </div>
             </div>
             <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>

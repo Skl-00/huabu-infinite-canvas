@@ -16,7 +16,7 @@ export async function exportCanvasProjects(projects: CanvasProject[], fileName =
             await Promise.all(
                 collectStorageKeys(project).map(async (storageKey) => {
                     const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
-                    if (!blob) return;
+                    if (!blob) throw new Error(`Missing local media: ${storageKey}`);
                     const path = `projects/${project.id}/files/${safeFileName(storageKey)}.${fileExtension(blob.type, storageKey)}`;
                     files.push({ storageKey, path, mimeType: blob.type || "application/octet-stream", bytes: blob.size });
                     zipFiles.push({ name: path, data: blob });

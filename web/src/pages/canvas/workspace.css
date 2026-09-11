@@ -1,0 +1,103 @@
+.canvas-workspace {
+    position: relative;
+    letter-spacing: 0;
+}
+.canvas-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: absolute;
+    inset: 0 0 auto;
+    height: 56px;
+    padding: 0 12px;
+    z-index: 70;
+    background: var(--canvas-panel);
+    border-bottom: 1px solid var(--canvas-border);
+}
+.canvas-topbar-primary { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.canvas-topbar-title { flex: 1; min-width: 0; max-width: 220px; }
+.canvas-topbar-title input, .canvas-topbar-title button { width: 100%; font-size: 14px; }
+.canvas-topbar-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.canvas-scene-switcher {
+    display: flex; align-items: center; gap: 2px;
+    width: 260px; min-width: 0; flex-shrink: 0;
+}
+.canvas-scene-switcher > button { width: 28px; padding: 0; }
+.canvas-creation-rail {
+    position: absolute; z-index: 60; top: 80px; left: 12px;
+    display: flex; flex-direction: column; gap: 4px; padding: 6px;
+    max-height: calc(100% - 180px); overflow-y: auto;
+    background: var(--canvas-panel); border: 1px solid var(--canvas-border); border-radius: 8px;
+    color: var(--canvas-text);
+}
+.canvas-creation-rail button {
+    display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0;
+    border-radius: 5px; cursor: pointer;
+}
+.canvas-creation-rail button:hover { background: var(--canvas-hover); }
+.canvas-rail-divider { height: 1px; background: var(--canvas-border); margin: 4px; }
+.canvas-editor-dock {
+    pointer-events: none; position: absolute; bottom: 16px; left: 320px; right: 16px;
+    display: flex; justify-content: center; z-index: 50;
+}
+.canvas-zoom-dock { position: absolute; bottom: 16px; left: 12px; z-index: 50; }
+.canvas-side-panel { padding-top: 56px; background: var(--canvas-panel); }
+.canvas-node-composer { max-width: min(740px, calc(100vw - 100px)); }
+.canvas-editor-overlay { width: min(640px, calc(100% - 80px)); max-height: calc(100% - 202px); }
+.canvas-editor-overlay [data-canvas-no-zoom] { border: 0; box-shadow: none; border-radius: 0; }
+.canvas-editor-overlay [contenteditable="true"] { height: 112px; min-height: 72px; }
+.canvas-editor-overlay .canvas-prompt-actions { flex-wrap: wrap; }
+.canvas-editor-overlay .canvas-prompt-settings { flex-wrap: wrap; gap: 4px; }
+.workspace-library-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 0;
+}
+.workspace-library-toolbar .ant-input-affix-wrapper {
+    width: min(100%, 520px);
+    min-width: 220px;
+    border-color: var(--border);
+    background: var(--card);
+}
+.workspace-library-summary {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: right;
+}
+.workspace-library-summary span { white-space: nowrap; }
+@media (max-width: 1100px) {
+    .canvas-agent-status, .canvas-topbar-extra { display: none; }
+    .canvas-editor-dock { bottom: 12px; left: 12px; right: 12px; }
+    .canvas-zoom-dock { bottom: 76px; left: auto; right: 12px; }
+}
+@media (max-width: 767px) {
+    .canvas-topbar { height: 92px; align-items: flex-start; padding-top: 10px; gap: 4px; }
+    .canvas-topbar-title { max-width: none; }
+    .canvas-topbar-brand { display: none; }
+    .canvas-scene-switcher { position: absolute; top: 50px; left: 12px; right: 12px; width: auto; }
+    .canvas-side-panel {
+        position: absolute !important; top: 92px; left: 0; bottom: 0; height: auto !important;
+        padding-top: 0; max-width: calc(100% - 48px); z-index: 80;
+        box-shadow: 8px 0 24px #0002;
+    }
+    .canvas-side-panel-inner { max-width: calc(100vw - 48px); }
+    .canvas-creation-rail { top: 108px; left: 8px; max-height: calc(100% - 258px); padding: 4px; gap: 2px; }
+    .canvas-creation-rail button { width: 32px; height: 32px; }
+    .canvas-zoom-dock > div { height: 42px; }
+    .canvas-zoom-dock input { width: 64px; }
+    .canvas-node-composer { max-width: calc(100vw - 24px); }
+    .canvas-editor-overlay { max-height: calc(100% - 238px); }
+    .canvas-editor-overlay [contenteditable="true"] { height: 84px; }
+    .workspace-library-toolbar { align-items: stretch; flex-direction: column; gap: 10px; }
+    .workspace-library-toolbar .ant-input-affix-wrapper { width: 100%; min-width: 0; }
+    .workspace-library-summary { justify-content: flex-start; text-align: left; }
+}

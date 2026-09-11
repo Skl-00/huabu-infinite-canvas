@@ -3,16 +3,18 @@ import { Select } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
+import { mediaRatioOptions } from "@/lib/media-size";
 
-const sizeOptions = ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16"];
+const sizeOptions: string[] = mediaRatioOptions.map((item) => item.value);
 
 type CanvasSizePickerProps = {
     value: string;
+    ariaLabel?: string;
     className?: string;
     onChange: (value: string) => void;
 };
 
-export function CanvasSizePicker({ value, className, onChange }: CanvasSizePickerProps) {
+export function CanvasSizePicker({ value, ariaLabel, className, onChange }: CanvasSizePickerProps) {
     const { t } = useTranslation();
     const rootRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
@@ -45,6 +47,7 @@ export function CanvasSizePicker({ value, className, onChange }: CanvasSizePicke
                 value={value || undefined}
                 searchValue={search}
                 placeholder={t("canvas.controls.ratio")}
+                aria-label={ariaLabel}
                 options={options}
                 popupMatchSelectWidth={false}
                 popupRender={(menu) => (

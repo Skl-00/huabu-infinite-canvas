@@ -1,35 +1,23 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, FileText, ImagePlus, Images, Maximize2, Sparkles, Video } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import { App, Button, Image, Tag } from "antd";
+import { App, Button, Empty } from "antd";
 import { useNavigate } from "react-router-dom";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 
 import { fetchPrompts, type Prompt } from "@/services/api/prompts";
-import { navigationTools } from "@/constant/navigation-tools";
 import i18n from "@/i18n";
-import { cn } from "@/lib/utils";
-
-function Highlighter({ action, color, children }: { action: "highlight" | "underline"; color: string; children?: ReactNode }) {
-    return (
-        <span className="relative inline-block px-1">
-            {action === "highlight" ? (
-                <span className="absolute inset-x-0 bottom-0 top-1 rounded-sm opacity-45" style={{ backgroundColor: color }} />
-            ) : (
-                <span className="absolute inset-x-0 bottom-0 h-1 rounded-full opacity-80" style={{ backgroundColor: color }} />
-            )}
-            <span className="relative font-medium text-stone-800 dark:text-stone-200">{children}</span>
-        </span>
-    );
-}
+import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { useAssetStore } from "@/stores/use-asset-store";
 
 export default function IndexPage() {
     const { message } = App.useApp();
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const [primaryTool] = navigationTools;
     const [promptShowcase, setPromptShowcase] = useState<Prompt[]>([]);
-    const [previewIndex, setPreviewIndex] = useState(0);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const projects = useCanvasStore((state) => state.projects);
+    const createProject = useCanvasStore((state) => state.createProject);
+    const assets = useAssetStore((state) => state.assets);
+    const recentProjects = projects.filter((project) => !project.workspaceId || project.workspaceId === project.id).slice(0, 4);
 
     useEffect(() => {
         void fetchPrompts({ pageSize: 12 })
@@ -38,83 +26,61 @@ export default function IndexPage() {
     }, [message]);
 
     return (
-        <main className="relative h-full overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-stone-950 dark:bg-[radial-gradient(rgba(245,245,244,.18)_1px,transparent_1px)] dark:text-stone-100">
-            <section className="relative mx-auto min-h-[calc(100vh-4rem)] max-w-7xl overflow-hidden px-6">
-                <div className="pointer-events-none absolute left-[15%] top-24 size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
-                <div className="pointer-events-none absolute right-[23%] top-[48%] size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
-
-                <div className="relative flex min-h-[620px] flex-col items-center justify-center pt-10 text-center">
-                    <h1 className="ai-title-aurora max-w-5xl text-balance text-5xl font-semibold tracking-normal sm:text-7xl lg:text-8xl">{t("meta.title")}</h1>
-                    <p className="mt-8 max-w-3xl text-balance text-lg leading-8 text-stone-500 dark:text-stone-400">
-                        <Trans i18nKey="home.description" components={{ canvas: <Highlighter action="underline" color="#FF9800" />, content: <Highlighter action="highlight" color="#87CEFA" /> }} />
-                    </p>
-                    <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                        <Button type="primary" size="large" onClick={() => navigate(`/${primaryTool.slug}`)} icon={<ArrowRight className="size-4" />} iconPlacement="end">
-                            {t("home.start")}
-                        </Button>
-                        <Button size="large" onClick={() => navigate("/canvas")}>
-                            {t("home.openCanvas")}
-                        </Button>
+        <main className="workspace-page">
+            <div className="workspace-content">
+                <section className="workspace-welcome">
+                    <div className="workspace-welcome-copy">
+                        <p className="workspace-eyebrow"><Sparkles size={14} />{t("home.workspaceEyebrow")}</p>
+                        <h1>{t("home.workspaceTitle")}</h1>
+                        <p className="workspace-lede">{t("home.workspaceDescription")}</p>
                     </div>
-                </div>
+                    <Button type="primary" size="large" onClick={() => navigate("/canvas")} icon={<Maximize2 size={17} />}>{t("home.openCanvas")}</Button>
+                </section>
 
-                <section className="relative mx-auto mb-20 max-w-6xl border-t border-stone-200 pt-12 dark:border-stone-800">
-                    <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
-                        <div />
-                        <div className="max-w-2xl text-center">
-                            <h2 className="text-3xl font-semibold text-stone-950 dark:text-stone-100">{t("home.showcaseTitle")}</h2>
-                            <p className="mt-3 text-base leading-7 text-stone-500 dark:text-stone-400">{t("home.showcaseDescription")}</p>
-                        </div>
-                        <Button type="link" onClick={() => navigate("/prompts")} className="justify-self-center md:justify-self-end" icon={<ArrowRight className="size-4" />} iconPlacement="end">
-                            {t("home.viewPrompts")}
-                        </Button>
-                    </div>
-                    <div className="grid auto-rows-[210px] gap-4 md:grid-cols-4">
-                        {promptShowcase.map((item, index) => (
-                            <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => {
-                                    setPreviewIndex(index);
-                                    setPreviewOpen(true);
-                                }}
-                                className={cn(
-                                    "group relative cursor-pointer overflow-hidden border border-stone-200 bg-stone-100 text-left dark:border-stone-800 dark:bg-stone-900",
-                                    index === 0 && "md:col-span-2 md:row-span-2",
-                                    index === 3 && "md:col-span-2",
-                                )}
-                            >
-                                <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent p-4 text-white">
-                                    <div className="mb-2 flex flex-wrap gap-1.5">
-                                        {item.tags.slice(0, 2).map((tag) => (
-                                            <Tag key={tag} variant="filled" className="m-0 bg-white/15 text-[11px] text-white backdrop-blur">
-                                                {tag}
-                                            </Tag>
-                                        ))}
-                                    </div>
-                                    <h3 className="text-sm font-medium">{item.title}</h3>
-                                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/75">{item.prompt}</p>
-                                </div>
-                            </button>
-                        ))}
+                <section className="workspace-section">
+                    <div className="workspace-section-heading"><div><h2>{t("home.quickCreate")}</h2><p>{t("home.description")}</p></div></div>
+                    <div className="quick-create-grid">
+                        <QuickCreate icon={<Maximize2 />} title={t("home.createCanvas")} description={t("home.createCanvasDescription")} onClick={() => navigate(`/canvas/${createProject(t("canvas.defaultTitle", { count: projects.length + 1 }))}`)} />
+                        <QuickCreate icon={<ImagePlus />} title={t("home.createImage")} description={t("home.createImageDescription")} onClick={() => navigate("/image")} />
+                        <QuickCreate icon={<Video />} title={t("home.createVideo")} description={t("home.createVideoDescription")} onClick={() => navigate("/video")} />
                     </div>
                 </section>
-            </section>
-            <Image.PreviewGroup
-                preview={{
-                    open: previewOpen,
-                    current: previewIndex,
-                    onOpenChange: setPreviewOpen,
-                    onChange: setPreviewIndex,
-                }}
-            >
-                <div className="hidden">
-                    {promptShowcase.map((item) => (
-                        <Image key={item.id} src={item.coverUrl} alt={item.title} />
-                    ))}
-                </div>
-            </Image.PreviewGroup>
+
+                <section className="workspace-community-entry">
+                    <div className="workspace-community-copy">
+                        <span className="workspace-community-icon"><FileText size={18} /></span>
+                        <div>
+                            <h2>{t("home.communityTitle")}</h2>
+                            <p>{t("home.communityDescription")}</p>
+                        </div>
+                    </div>
+                    <Button type="link" onClick={() => navigate("/prompts")} icon={<ArrowRight size={15} />}>{t("home.openCommunity")}</Button>
+                </section>
+
+                <section className="workspace-section">
+                    <div className="workspace-section-heading"><div><h2>{t("home.libraryTitle")}</h2><p>{t("home.libraryDescription")}</p></div></div>
+                    <div className="workspace-library-grid">
+                        <LibraryPanel icon={<Maximize2 />} title={t("home.recentCanvases")} count={recentProjects.length} action={t("home.openLibrary")} onClick={() => navigate("/canvas")}>
+                            {recentProjects.length ? recentProjects.map((project) => <button key={project.id} type="button" className="workspace-list-row" onClick={() => navigate(`/canvas/${project.id}`)}><span>{project.title}</span><small>{project.nodes.length} 个节点</small></button>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("home.emptyCanvases")} />}
+                        </LibraryPanel>
+                        <LibraryPanel icon={<Images />} title={t("home.recentAssets")} count={assets.length} action={t("home.openLibrary")} onClick={() => navigate("/assets")}>
+                            <div className="workspace-stat"><strong>{assets.length}</strong><span>{t("home.recentAssets")}</span></div>
+                            <Button type="link" onClick={() => navigate("/assets")} icon={<ArrowRight size={15} />}>{t("home.openLibrary")}</Button>
+                        </LibraryPanel>
+                        <LibraryPanel icon={<FileText />} title={t("home.recentPrompts")} count={promptShowcase.length} action={t("home.openLibrary")} onClick={() => navigate("/prompts")}>
+                            <div className="workspace-prompt-preview">{promptShowcase.slice(0, 2).map((item) => <button key={item.id} type="button" onClick={() => navigate("/prompts")}><strong>{item.title}</strong><span>{item.prompt}</span></button>)}</div>
+                        </LibraryPanel>
+                    </div>
+                </section>
+            </div>
         </main>
     );
+}
+
+function QuickCreate({ icon, title, description, onClick }: { icon: ReactNode; title: string; description: string; onClick: () => void }) {
+    return <button type="button" className="quick-create-card" onClick={onClick}><span className="quick-create-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span><ArrowRight size={16} /></button>;
+}
+
+function LibraryPanel({ icon, title, count, action, onClick, children }: { icon: ReactNode; title: string; count: number; action: string; onClick: () => void; children: ReactNode }) {
+    return <section className="library-panel"><header><div><span className="library-panel-icon">{icon}</span><h3>{title}</h3><small>{count}</small></div><button type="button" onClick={onClick}>{action}</button></header><div className="library-panel-body">{children}</div></section>;
 }

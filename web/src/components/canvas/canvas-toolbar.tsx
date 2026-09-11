@@ -1,13 +1,15 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Segmented, Switch } from "antd";
-import { CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+import { CircleDot, Eraser, Grid2x2, Hand, Info, Layers, Moon, MousePointer2, Palette, Puzzle, Redo2, Square, Sun, Trash2, Undo2 } from "lucide-react";
 
 import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
 import { getNodePluginId, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { useTranslation } from "react-i18next";
+import { useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
+import { CanvasSizePicker } from "./canvas-size-picker";
 
 export function CanvasToolbar({
     selectedCount,
@@ -16,21 +18,18 @@ export function CanvasToolbar({
     canRedo,
     backgroundMode,
     showImageInfo,
-    onAddImage,
-    onAddVideo,
-    onAddAudio,
-    onAddText,
-    onAddConfig,
-    onAddGroup,
+    defaultImageSize,
+    showConnections,
     onAddExtensionNode,
     onUndo,
     onRedo,
-    onUpload,
     onDelete,
     onClear,
     onCanvasToolChange,
     onBackgroundModeChange,
     onShowImageInfoChange,
+    onDefaultImageSizeChange,
+    onShowConnectionsChange,
 }: {
     selectedCount: number;
     canvasTool: "select" | "pan";
@@ -38,21 +37,18 @@ export function CanvasToolbar({
     canRedo: boolean;
     backgroundMode: CanvasBackgroundMode;
     showImageInfo: boolean;
-    onAddImage: () => void;
-    onAddVideo: () => void;
-    onAddAudio: () => void;
-    onAddText: () => void;
-    onAddConfig: () => void;
-    onAddGroup: () => void;
+    defaultImageSize: string;
+    showConnections: boolean;
     onAddExtensionNode: (type: string) => void;
     onUndo: () => void;
     onRedo: () => void;
-    onUpload: () => void;
     onDelete: () => void;
     onClear: () => void;
     onCanvasToolChange: (tool: "select" | "pan") => void;
     onBackgroundModeChange: (mode: CanvasBackgroundMode) => void;
     onShowImageInfoChange: (show: boolean) => void;
+    onDefaultImageSizeChange: (size: string) => void;
+    onShowConnectionsChange: (show: boolean) => void;
 }) {
     const wrapRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslation();
@@ -60,6 +56,8 @@ export function CanvasToolbar({
     const colorTheme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const theme = canvasThemes[colorTheme];
+    const panelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
+    const togglePanel = useCanvasSidePanelStore((state) => state.togglePanel);
     const [hovered, setHovered] = useState<string | null>(null);
     const [tipX, setTipX] = useState(0);
     const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -78,6 +76,8 @@ export function CanvasToolbar({
     useEffect(() => {
         if (!extensionsOpen && !appearanceOpen) return;
         const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (target?.closest(".ant-select-dropdown")) return;
             if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
                 setExtensionsOpen(false);
                 setAppearanceOpen(false);
@@ -88,9 +88,9 @@ export function CanvasToolbar({
     }, [extensionsOpen, appearanceOpen]);
 
     return (
-        <div ref={rootRef} className="pointer-events-none absolute bottom-5 z-50 flex justify-center" style={{ left: 300, right: 16 }}>
+        <div ref={rootRef} className="canvas-editor-dock" aria-label="编辑工具">
             {tip ? <DockTip label={tip} x={tipX} theme={theme} /> : null}
-            <div ref={wrapRef} className="thin-scrollbar pointer-events-auto flex h-14 max-w-full items-center gap-1 overflow-x-auto rounded-xl border px-2 shadow-lg backdrop-blur [&>*]:shrink-0" style={dockStyle}>
+            <div ref={wrapRef} className="thin-scrollbar pointer-events-auto flex h-12 max-w-full items-center gap-1 overflow-x-auto rounded-lg border px-2 shadow-sm backdrop-blur [&>*]:shrink-0" style={dockStyle}>
                 <ToolbarButton id={`tool-${canvasTool}`} label={t(`canvas.toolbar.${canvasTool}`)} active hovered={hovered} activeStyle={activeStyle} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={() => onCanvasToolChange(canvasTool === "select" ? "pan" : "select")}>
                     {canvasTool === "select" ? <MousePointer2 className="size-4.5" /> : <Hand className="size-4.5" />}
                 </ToolbarButton>
@@ -101,23 +101,8 @@ export function CanvasToolbar({
                     <Redo2 className="size-4.5" />
                 </ToolbarButton>
                 <Divider theme={theme} />
-                <ToolbarButton id="tool-text" label={t("canvas.toolbar.text")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddText}>
-                    <Type className="size-4.5" />
-                </ToolbarButton>
-                <ToolbarButton id="tool-image" label={t("canvas.toolbar.image")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddImage}>
-                    <ImageIcon className="size-4.5" />
-                </ToolbarButton>
-                <ToolbarButton id="tool-video" label={t("canvas.toolbar.video")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddVideo}>
-                    <Video className="size-4.5" />
-                </ToolbarButton>
-                <ToolbarButton id="tool-audio" label={t("canvas.toolbar.audio")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddAudio}>
-                    <Music2 className="size-4.5" />
-                </ToolbarButton>
-                <ToolbarButton id="tool-config" label={t("canvas.toolbar.config")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddConfig}>
-                    <Settings2 className="size-4.5" />
-                </ToolbarButton>
-                <ToolbarButton id="tool-group" label={t("canvas.toolbar.group")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddGroup}>
-                    <Group className="size-4.5" />
+                <ToolbarButton id="tool-library" label="资源面板" active={panelOpen} activeStyle={activeStyle} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={togglePanel}>
+                    <Layers className="size-4.5" />
                 </ToolbarButton>
                 {extensionDefs.length ? (
                     <ToolbarButton
@@ -139,9 +124,6 @@ export function CanvasToolbar({
                         <Puzzle className="size-4.5" />
                     </ToolbarButton>
                 ) : null}
-                <ToolbarButton id="tool-upload" label={t("canvas.toolbar.upload")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onUpload}>
-                    <Upload className="size-4.5" />
-                </ToolbarButton>
                 <Divider theme={theme} />
                 <ToolbarButton
                     id="tool-style"
@@ -178,7 +160,7 @@ export function CanvasToolbar({
             {extensionsOpen && extensionDefs.length ? (
                 <div
                     className="thin-scrollbar pointer-events-auto absolute bottom-[72px] z-30 max-h-[50vh] w-[240px] -translate-x-1/2 overflow-y-auto rounded-xl border p-2 shadow-xl backdrop-blur"
-                    style={{ left: extPanelX || "50%", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                    style={{ left: "50%", maxWidth: "calc(100vw - 24px)", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                 >
                     <div className="px-1.5 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.extensions")}</div>
                     <div className="grid gap-0.5">
@@ -208,7 +190,7 @@ export function CanvasToolbar({
             {appearanceOpen ? (
                 <div
                     className="pointer-events-auto absolute bottom-[72px] z-30 w-[248px] -translate-x-1/2 rounded-xl border p-2.5 shadow-xl backdrop-blur"
-                    style={{ left: panelX || "50%", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                    style={{ left: "50%", maxHeight: "calc(100dvh - 180px)", overflowY: "auto", maxWidth: "calc(100vw - 24px)", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
                 >
                     <div className="px-1 pb-2 text-sm font-medium opacity-65">{t("canvas.toolbar.appearance")}</div>
                     <div className="px-1 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.themeMode")}</div>
@@ -255,12 +237,21 @@ export function CanvasToolbar({
                             },
                         ]}
                     />
+                    <div className="mt-3 px-1 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.defaultImageSize")}</div>
+                    <CanvasSizePicker value={defaultImageSize} ariaLabel={t("canvas.toolbar.defaultImageSize")} onChange={onDefaultImageSizeChange} className="h-9 w-full" />
                     <div className="mt-3 flex items-center justify-between gap-3 rounded-lg px-1.5 py-1">
                         <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-medium opacity-65">
                             <Info className="size-3.5" />
                             {t("canvas.toolbar.imageInfo")}
                         </span>
-                        <Switch size="small" checked={showImageInfo} onChange={onShowImageInfoChange} />
+                        <Switch size="small" aria-label={t("canvas.toolbar.imageInfo")} checked={showImageInfo} onChange={onShowImageInfoChange} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3 rounded-lg px-1.5 py-1">
+                        <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-medium opacity-65">
+                            <Layers className="size-3.5" />
+                            {t("canvas.toolbar.showConnections")}
+                        </span>
+                        <Switch size="small" aria-label={t("canvas.toolbar.showConnections")} checked={showConnections} onChange={onShowConnectionsChange} />
                     </div>
                 </div>
             ) : null}
@@ -352,6 +343,7 @@ function DockTip({ label, x, theme }: { label: string; x: number; theme: CanvasT
 }
 
 function toolLabel(id: string, t: (key: string) => string) {
+    if (id === "tool-library") return "资源面板";
     if (id === "tool-select") return t("canvas.toolbar.select");
     if (id === "tool-pan") return t("canvas.toolbar.pan");
     if (id === "tool-undo") return t("canvas.undo");

@@ -141,10 +141,13 @@ export function normalizeConnection(firstNodeId: string, secondNodeId: string, n
     const first = nodes.find((node) => node.id === firstNodeId);
     const second = nodes.find((node) => node.id === secondNodeId);
     if (!first || !second || first.id === second.id) return null;
-    if (second.type === CanvasNodeType.Group) return null;
+    const connection = firstHandleType === "source"
+        ? { fromNodeId: first.id, toNodeId: second.id }
+        : { fromNodeId: second.id, toNodeId: first.id };
+    const source = nodes.find((node) => node.id === connection.fromNodeId);
+    const target = nodes.find((node) => node.id === connection.toNodeId);
+    if (!source || source.type === CanvasNodeType.Config) return null;
+    if (!target || target.type === CanvasNodeType.Group) return null;
     if (first.type === CanvasNodeType.Config && second.type === CanvasNodeType.Config) return null;
-    if (second.type === CanvasNodeType.Config) return { fromNodeId: first.id, toNodeId: second.id };
-    if (first.type === CanvasNodeType.Config && firstHandleType === "target") return { fromNodeId: second.id, toNodeId: first.id };
-    if (first.type === CanvasNodeType.Config) return { fromNodeId: first.id, toNodeId: second.id };
-    return { fromNodeId: first.id, toNodeId: second.id };
+    return connection;
 }

@@ -1,19 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { App, Button } from "antd";
-import { Download, FileUp, Plus } from "lucide-react";
+import { App, Button, Input } from "antd";
+import { Download, FileUp, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { readZip } from "@/lib/zip";
-import { setMediaBlob } from "@/services/file-storage";
-import { setImageBlob } from "@/services/image-storage";
+import { readCanvasArchive } from "@/lib/canvas/canvas-import";
 import { CanvasDeleteProjectsDialog } from "@/components/canvas/canvas-delete-projects-dialog";
 import { CanvasProjectCard } from "@/components/canvas/canvas-project-card";
-import type { CanvasExportFile } from "@/types/canvas-export";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
 import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { hasAgentUrlBootstrap } from "@/lib/agent/agent-url-bootstrap";
+import { workspaceProjects } from "@/lib/canvas/canvas-workspaces";
+import "./workspace.css";
 
 export default function CanvasPage() {
     const { message } = App.useApp();
@@ -22,10 +21,22 @@ export default function CanvasPage() {
     const [searchParams] = useSearchParams();
     const inputRef = useRef<HTMLInputElement>(null);
     const autoOpenRef = useRef(false);
+    const [search, setSearch] = useState("");
     const hydrated = useCanvasStore((state) => state.hydrated);
     const projects = useCanvasStore((state) => state.projects);
+    const workspaceRoots = projects.filter((project) => !project.workspaceId || project.workspaceId === project.id || !projects.some((root) => root.id === project.workspaceId));
+    const visibleRoots = useMemo(() => {
+        const keyword = search.trim().toLocaleLowerCase();
+        if (!keyword) return workspaceRoots;
+        return workspaceRoots.filter((root) =>
+            workspaceProjects(projects, root).some((scene) =>
+                [scene.title, scene.sceneTitle, ...scene.nodes.map((node) => node.title)]
+                    .some((value) => value?.toLocaleLowerCase().includes(keyword)),
+            ),
+        );
+    }, [projects, search, workspaceRoots]);
     const createProject = useCanvasStore((state) => state.createProject);
-    const importProject = useCanvasStore((state) => state.importProject);
+    const importProjects = useCanvasStore((state) => state.importProjects);
     const selectedIds = useCanvasUiStore((state) => state.selectedProjectIds);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
 
@@ -40,22 +51,9 @@ export default function CanvasPage() {
     const importCanvas = async (file?: File) => {
         if (!file) return;
         try {
-            const zip = await readZip(file);
-            const projectFile = zip.get("projects.json");
-            if (!projectFile) throw new Error("missing projects.json");
-            const data = JSON.parse(await projectFile.text()) as CanvasExportFile;
-            await Promise.all(
-                data.projects.flatMap((project) =>
-                    project.files.map(async (item) => {
-                        const blob = zip.get(item.path);
-                        if (!blob) return;
-                        const typedBlob = blob.type ? blob : blob.slice(0, blob.size, item.mimeType);
-                        await (item.storageKey.startsWith("image:") ? setImageBlob(item.storageKey, typedBlob) : setMediaBlob(item.storageKey, typedBlob));
-                    }),
-                ),
-            );
-            data.projects.forEach((item) => importProject(item.project));
-            message.success(t("canvas.imported", { count: data.projects.length }));
+            const imported = await readCanvasArchive(file);
+            importProjects(imported);
+            message.success(t("canvas.imported", { count: imported.length }));
         } catch {
             message.error(t("canvas.importFailed"));
         } finally {
@@ -72,20 +70,21 @@ export default function CanvasPage() {
     if (hydrated && (mode === "new" || mode === "recent")) return <main className="flex h-full items-center justify-center bg-background text-sm text-stone-500">{t("canvas.opening")}</main>;
 
     return (
-        <main className="h-full overflow-auto bg-background text-stone-950 dark:text-stone-100">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
-                <header className="flex flex-wrap items-end justify-between gap-4 border-b border-stone-200 pb-6 dark:border-stone-800">
+        <main className="workspace-page">
+            <div className="workspace-content">
+                <header className="workspace-page-heading">
                     <div>
-                        <p className="text-xs text-stone-500">{t("canvas.library")}</p>
-                        <h1 className="mt-3 text-3xl font-semibold">{t("canvas.title")}</h1>
+                        <p className="workspace-eyebrow">{t("canvas.library")}</p>
+                        <h1>{t("canvas.title")}</h1>
+                        <p className="workspace-page-description">{t("canvas.emptyDescription")}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="workspace-page-actions">
                         {selectedIds.length ? (
                             <>
-                                <Button disabled={!hydrated} icon={<Download className="size-4" />} onClick={() => void exportCanvasProjects(projects.filter((project) => selectedIds.includes(project.id)), `${t("canvas.title")}-${selectedIds.length}`)}>
+                                <Button disabled={!hydrated} icon={<Download className="size-4" />} onClick={() => void exportCanvasProjects(projects.filter((project) => selectedIds.includes(project.workspaceId || project.id)), `${t("canvas.title")}-${selectedIds.length}`)}>
                                     {t("canvas.exportSelected")}
                                 </Button>
-                                <Button disabled={!hydrated} onClick={() => setDeleteIds(selectedIds)}>
+                                <Button disabled={!hydrated} onClick={() => setDeleteIds(projects.filter((project) => selectedIds.includes(project.workspaceId || project.id)).map((project) => project.id))}>
                                     {t("canvas.deleteSelected")}
                                 </Button>
                             </>
@@ -104,16 +103,40 @@ export default function CanvasPage() {
                     </div>
                 </header>
 
-                {!hydrated ? (
-                    <section className="flex min-h-[360px] items-center justify-center border-y border-stone-200 text-sm text-stone-500 dark:border-stone-800">{t("canvas.loading")}</section>
-                ) : projects.length ? (
-                    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                        {projects.map((project) => (
-                            <CanvasProjectCard key={project.id} project={project} />
-                        ))}
+                <div className="workspace-library-toolbar">
+                    <Input
+                        allowClear
+                        prefix={<Search className="size-4 opacity-45" />}
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder={t("canvas.searchPlaceholder")}
+                        aria-label={t("canvas.search")}
+                    />
+                    <div className="workspace-library-summary">
+                        <span>{t("canvas.projectSummary.projects", { count: workspaceRoots.length })}</span>
+                        <span>{t("canvas.projectSummary.scenes", { count: projects.length })}</span>
+                        <span>{t("canvas.projectSummary.nodes", { count: projects.reduce((total, project) => total + project.nodes.length, 0) })}</span>
+                        <span>{t("canvas.projectSummary.connections", { count: projects.reduce((total, project) => total + project.connections.length, 0) })}</span>
                     </div>
+                </div>
+
+                {!hydrated ? (
+                    <section className="workspace-empty">{t("canvas.loading")}</section>
+                ) : projects.length ? (
+                    visibleRoots.length ? (
+                        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                            {visibleRoots.map((project) => (
+                                <CanvasProjectCard key={project.id} project={project} />
+                            ))}
+                        </div>
+                    ) : (
+                        <section className="workspace-empty">
+                            <h2>{t("canvas.noSearchResults")}</h2>
+                            <p>{t("canvas.searchHint")}</p>
+                        </section>
+                    )
                 ) : (
-                    <section className="flex min-h-[360px] flex-col items-center justify-center border-y border-stone-200 text-center dark:border-stone-800">
+                    <section className="workspace-empty workspace-empty-large">
                         <h2 className="text-xl font-medium">{t("canvas.empty")}</h2>
                         <p className="mt-3 text-sm text-stone-500">{t("canvas.emptyDescription")}</p>
                         <Button type="primary" className="mt-6" icon={<Plus className="size-4" />} onClick={createAndEnter}>

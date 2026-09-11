@@ -16,11 +16,13 @@ function initialWidth() {
 }
 
 function initialOpen() {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem(OPEN_KEY) !== "0";
+    if (typeof window === "undefined") return false;
+    return window.innerWidth >= 768 && localStorage.getItem(OPEN_KEY) === "1";
 }
 
 type CanvasSidePanelStore = {
+    tab: "canvas" | "assets" | "prompts";
+    setTab: (tab: "canvas" | "assets" | "prompts") => void;
     width: number;
     panelOpen: boolean;
     panelMounted: boolean;
@@ -32,6 +34,8 @@ type CanvasSidePanelStore = {
 };
 
 export const useCanvasSidePanelStore = create<CanvasSidePanelStore>((set, get) => ({
+    tab: "canvas",
+    setTab: (tab) => set({ tab }),
     width: initialWidth(),
     panelOpen: initialOpen(),
     panelMounted: initialOpen(),
