@@ -1,7 +1,7 @@
 export default {
     meta: {
-        title: "Infinite Canvas",
-        description: "An infinite canvas creation tool",
+        title: "HuaBu Canvas",
+        description: "An open-source visual workflow workspace for prompts, references, assets, and generated results",
     },
     theme: { toggle: "Toggle theme" },
     common: {
@@ -44,7 +44,7 @@ export default {
         returns: { image: "Text-to-image and image editing use different APIs; distinguish them by whether images is empty. Return an image URL or data URL, an array of them, or [{ dataUrl }] / [{ url }] / [{ b64_json }].", video: "Poll inside the script and return { url }, { blob }, or a video URL string.", audio: "Return a Blob, base64/data URL string, or { b64_json } / { data } / { url }.", text: "Push streaming output with onDelta(text), then return the complete text string." },
         templates: { openai: "OpenAI format", gemini: "Gemini format" },
         authoring: {
-            intro: "Write a model request script for Infinite Canvas. Capability: {{capability}}. Target model: {{model}}.",
+            intro: "Write a model request script for HuaBu Canvas. Capability: {{capability}}. Target model: {{model}}.",
             shape: "Write an async function whose parameter list names the variables you use, and unpack params into fields such as size, quality, and count. Do not import modules or use Markdown fences. Send the request and return the result inside the function. The runtime injects matching locals, so finish with return await functionName({ the same arguments }).",
             returnTitle: "Return requirements",
             variablesTitle: "Available variables",
@@ -215,9 +215,9 @@ export default {
         empty: "No video generated yet",
     },
     canvas: {
-        defaultTitle: "Infinite Canvas {{count}}",
+        defaultTitle: "HuaBu Canvas {{count}}",
         library: "Canvas library",
-        title: "Infinite Canvas",
+        title: "HuaBu Canvas",
         imported: "Imported {{count}} canvases",
         importFailed: "Import failed. Select a valid canvas package.",
         opening: "Opening canvas...",
@@ -266,7 +266,7 @@ export default {
             select: "Select {{name}}", stats: "{{nodes}} nodes · {{connections}} connections", updated: "Updated {{date}}", saveName: "Save name", cancelRename: "Cancel rename", export: "Export", rename: "Rename", delete: "Delete",
             deleteTitle: "Delete canvases?", deleteDescription: "This will delete {{count}} canvases along with their nodes and connections.",
         },
-        export: { defaultProjectName: "Infinite Canvas", defaultNodesName: "Canvas elements", item: "Element" },
+        export: { defaultProjectName: "HuaBu Canvas", defaultNodesName: "Canvas elements", item: "Element" },
         createMenu: {
             fromNode: "Generate from this node", close: "Close", text: "Generate text", textDescription: "Scripts, ad copy, and brand content", image: "Generate image", video: "Generate video", audio: "Audio reference", config: "Configuration node", configDescription: "Model, size, count, and input order", select: "Select a node",
         },
@@ -351,7 +351,7 @@ export default {
     },
     home: {
         promptError: "Failed to load prompts",
-        description: "Generate, connect, and reshape images, text, and graphics in Infinite Canvas, turning one-off generations into a continuous creative process.",
+        description: "Generate, connect, and reshape images, text, and graphics in HuaBu Canvas, turning one-off generations into a continuous creative process.",
         start: "Get started",
         openCanvas: "Open canvas",
         workspaceEyebrow: "Creative workspace",
@@ -421,7 +421,7 @@ export default {
         },
         localStorage: {
             title: "IndexedDB storage usage",
-            description: "View browser data saved by Infinite Canvas, grouped by object store.",
+            description: "View browser data saved by HuaBu Canvas, grouped by object store.",
             indexedDbUsage: "IndexedDB usage",
             siteUsage: "Total site usage",
             quota: "Available quota",
@@ -429,7 +429,7 @@ export default {
             siteUsageHint: "Includes IndexedDB and other site data",
             quotaHint: "Allocated dynamically by the browser",
             quotaProgress: "Site quota usage",
-            mainDatabase: "Infinite Canvas data",
+            mainDatabase: "HuaBu Canvas data",
             records: "{{count}} records",
             refresh: "Refresh usage",
             readFailed: "Failed to read local storage",
@@ -653,7 +653,7 @@ export default {
         status: { failed: "Connection failed", connected: "Connected", connecting: "Connecting", disconnected: "Disconnected" },
         state: { ready: "Ready", connectionRequired: "Enter the Local URL and Connect token", invalidUrl: "The Local URL is invalid", offline: "Offline", skillReadFailed: "Failed to read Skill", skillParseFailed: "Failed to parse Skill", requestFailed: "Local Agent request failed" },
         siteTools: { canvasList: "Canvas list", generationStatus: "Generation task status", imageConfig: "Image configuration", imageGenerate: "Generate in Image Studio", videoConfig: "Video configuration", videoGenerate: "Generate in Video Studio", promptSearch: "Search prompts", assetList: "Asset list", assetAdd: "Add asset", unknownTool: "Unknown tool: {{name}}", canvasLoading: "The canvas is still loading. Try again shortly.", canvasHint: "Use site_navigate to open /canvas/{id}", assetsLoading: "Assets are still loading. Try again shortly.", assetTitleRequired: "Provide the asset title", textContentRequired: "content is required when kind=text", imageUrlRequired: "imageUrl is required when kind=image", imageReadFailed: "Could not read the image. Use a data URL or a cross-origin accessible image URL.", assetKindUnsupported: "assets_add supports only kind=text or kind=image", imageGenerationStarted: "Opened Image Studio and started generation. Use generation_get_status to query the task.", imageConfigApplied: "Opened Image Studio and applied the parameters without starting generation.", videoGenerationStarted: "Opened Video Studio and started generation. Use generation_get_status to query the task.", videoConfigApplied: "Opened Video Studio and applied the parameters without starting generation." },
-        connect: { pluginTitle: "Option 1: Use the Codex plugin", pluginText: "Install the Infinite Canvas plugin in the Codex app and launch the canvas through it. The plugin starts the local Agent and supplies the connection details automatically.", directTitle: "Option 2: Run the Agent directly", directText: "Without the Codex plugin, run the command below in a terminal, then return here to connect or enter the Local URL and Connect token manually.", commandCopied: "Command copied", pluginReminder: "Codex plugin note", pluginReminderText: "The tool list enters the Codex context and consumes additional tokens only after installing the Codex plugin or adding MCP manually. Running npx -y @basketikun/canvas-agent@latest alone does not install MCP.", removePlugin: "Remove plugin", removeMcp: "Remove manual MCP", copyCommand: "Copy command", title: "Connect local Agent", description: "Choose the connection method that fits your workflow.", webConnection: "Web connection", autoDiscover: "The Local URL and Connect token are discovered automatically by default. Enter them manually only if discovery fails.", disconnect: "Disconnect", connect: "Connect", localAddress: "Local address", urlPlaceholder: "For example http://127.0.0.1:17371", token: "Connection token", tokenPlaceholder: "Discover automatically or enter the Connect token" },
+        connect: { pluginTitle: "Option 1: Use the Codex plugin", pluginText: "Install the HuaBu Canvas plugin in the Codex app and launch the canvas through it. The plugin starts the local Agent and supplies the connection details automatically.", directTitle: "Option 2: Run the Agent directly", directText: "Without the Codex plugin, run the command below in a terminal, then return here to connect or enter the Local URL and Connect token manually.", commandCopied: "Command copied", pluginReminder: "Codex plugin note", pluginReminderText: "The tool list enters the Codex context and consumes additional tokens only after installing the Codex plugin or adding MCP manually. Running npx -y @basketikun/canvas-agent@latest alone does not install MCP.", removePlugin: "Remove plugin", removeMcp: "Remove manual MCP", copyCommand: "Copy command", title: "Connect local Agent", description: "Choose the connection method that fits your workflow.", webConnection: "Web connection", autoDiscover: "The Local URL and Connect token are discovered automatically by default. Enter them manually only if discovery fails.", disconnect: "Disconnect", connect: "Connect", localAddress: "Local address", urlPlaceholder: "For example http://127.0.0.1:17371", token: "Connection token", tokenPlaceholder: "Discover automatically or enter the Connect token" },
         history: { workspace: "Workspace", defaultWorkspace: "Default canvas directory", selected: "{{count}} selected", count: "{{count}} conversations", empty: "No history", deleteCount: "Delete {{count}}", refresh: "Refresh", newThread: "New chat", selectThread: "Select {{name}}", untitled: "Untitled conversation", current: "Current", noWorkspaceThreads: "No conversations in this workspace yet", connectHint: "Connect the local Agent to view conversation history" },
         skills: { selectLocal: "Select local Skill", search: "Search Skills", loading: "Loading Skills…", noMatch: "No matching enabled Skills", none: "No Skills available", select: "Select Skill", connectHint: "Connect the Agent to use Skills" },
         skillManager: {

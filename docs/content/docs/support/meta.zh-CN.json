@@ -1,9 +1,8 @@
 {
-  "title": "支持与安全",
+  "title": "项目安全",
   "root": true,
   "defaultOpen": true,
   "pages": [
-    "security",
-    "sponsor"
+    "security"
   ]
 }

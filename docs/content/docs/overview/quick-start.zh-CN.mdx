@@ -1,11 +1,11 @@
 ---
 title: 快速开始
-description: 用最少步骤把无限画布跑起来
+description: 用最少步骤把 HuaBu 画布跑起来
 ---
 
 # 快速开始
 
-如果你只是想先把项目跑起来，优先部署或启动 `web/` 前端。
+如果你只是想先把 HuaBu 画布跑起来，优先部署或启动 `web/` 前端。
 
 ## Vercel 部署
 
@@ -32,8 +32,8 @@ http://localhost:3000
 如果你需要基于当前源码构建镜像：
 
 ```bash
-docker build -t infinite-canvas .
-docker run --rm -p 3000:3000 infinite-canvas
+docker build -t huabu-canvas .
+docker run --rm -p 3000:3000 huabu-canvas
 ```
 
 ## 首次使用建议
@@ -44,5 +44,5 @@ docker run --rm -p 3000:3000 infinite-canvas
 
 ## 说明
 
-- 当前画布项目和“我的素材”主要保存在浏览器本地，WebDAV 同步需要用户自行配置。
+- HuaBu 画布项目和“我的素材”主要保存在浏览器本地，WebDAV 同步需要用户自行配置。
 - AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。

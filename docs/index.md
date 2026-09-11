@@ -1,4 +1,4 @@
-# Infinite Canvas Documentation Index
+# HuaBu Canvas Documentation Index
 
 ## Overview
 
@@ -19,15 +19,14 @@
 - [Canvas Data Structure](/docs/development/canvas-data-structure)
 - [How the Local Codex Connection Works](/docs/development/local-codex-canvas)
 
-## Business
+## Project
 
 - [Open-source License](/docs/business/license)
-- [Business Cooperation](/docs/business/business)
+- [Project Cooperation](/docs/business/business)
 
 ## Support and Security
 
 - [Report a Vulnerability](/docs/support/security)
-- [Sponsor the Project](/docs/support/sponsor)
 
 ## Project Progress
 
@@ -37,5 +36,6 @@
 
 ## Notes
 
-- Canvas projects and My Assets are primarily stored in the browser. WebDAV can be configured for cross-device synchronization.
-- The AI API key is stored in the browser, which sends requests directly to OpenAI-compatible endpoints.
+- HuaBu Canvas projects and My Assets are primarily stored in the browser. WebDAV is optional and user-configured.
+- API keys are stored locally and used by the browser to call configured OpenAI-compatible endpoints.
+- The product layer continues the open-source infinite-canvas foundation; protocol names and compatibility keys remain unchanged.

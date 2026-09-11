@@ -1,60 +1,53 @@
 import Link from 'next/link';
-import { ArrowUpRight, BookOpen, Rocket } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Check, Code2, Rocket } from 'lucide-react';
 import { appNames, gitConfig } from '@/lib/shared';
 import { localizePath, type Locale } from '@/lib/i18n';
 import type { Metadata } from 'next';
 
 const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
-const demoUrl = 'https://canvas.best/';
-const starHistoryUrl = `https://www.star-history.com/?repos=${gitConfig.user}%2F${gitConfig.repo}&type=date`;
-const starHistoryChart = `https://api.star-history.com/chart?repos=${gitConfig.user}/${gitConfig.repo}&type=date&transparent=true`;
-const darkStarHistoryChart = `${starHistoryChart}&theme=dark`;
-
-const previewImages = [
-  {
-    src: 'https://i.ibb.co/TDFvGWDT/image.png',
-    title: { en: 'Canvas composition', 'zh-CN': '画布编排' },
-  },
-  {
-    src: 'https://i.ibb.co/zVwJq3YS/image.png',
-    title: { en: 'Image generation', 'zh-CN': '图片生成' },
-  },
-  {
-    src: 'https://i.ibb.co/PvY3qhhK/image.png',
-    title: { en: 'Reference editing', 'zh-CN': '参考图编辑' },
-  },
-  {
-    src: 'https://i.ibb.co/7D04LwN/image.png',
-    title: { en: 'Node workflow', 'zh-CN': '节点工作流' },
-  },
-];
 
 const messages = {
   en: {
-    eyebrow: 'Open-source AI image creation workspace',
-    center: 'Documentation',
-    description: 'An infinite canvas for image creation that brings canvas composition, AI generation, reference editing, prompt libraries, and reusable assets into one workflow.',
+    eyebrow: 'Open-source visual workflow workspace',
+    center: 'Build ideas into connected work',
+    description:
+      'HuaBu Canvas is a browser-first workspace for arranging prompts, references, assets, and generated results on a persistent canvas.',
     quickStart: 'Quick Start',
-    demo: 'Live Demo',
-    gallery: 'Gallery',
-    features: 'Explore Features',
-    previewAlt: 'Infinite Canvas preview',
-    contributors: 'Contributors',
-    contributorsDescription: 'Thank you to everyone who has contributed to this project',
-    contributorsAlt: 'Contributor avatars',
+    source: 'View source',
+    capabilities: 'What is in the workspace',
+    capabilityDescriptions: [
+      'Organize projects, nodes, connections, and viewport state in the browser.',
+      'Run image, text, video, and audio workflows through your configured providers.',
+      'Keep prompts, references, generated results, and reusable assets connected.',
+      'Connect a local Canvas Agent when you want Codex to inspect or operate the canvas.',
+    ],
+    foundation: 'Built on an open canvas foundation',
+    foundationDescription:
+      'HuaBu Canvas continues the open-source infinite-canvas foundation with a product layer focused on creative workflows, durable local projects, and practical iteration.',
+    status: 'Current product boundary',
+    statusDescription:
+      'The application is actively evolving. Cloud accounts, hosted storage, billing, and private capabilities are intentionally not presented as built-in features.',
   },
   'zh-CN': {
-    eyebrow: '开源 AI 图片创作工作台',
-    center: '文档中心',
-    description: '面向图片创作的无限画布，把画布编排、AI 生成、参考图编辑、提示词库和素材沉淀放在同一个工作流里。',
+    eyebrow: '开源视觉工作流工作台',
+    center: '把想法组织成可继续的创作',
+    description:
+      'HuaBu 画布是一个浏览器优先的创作工作台，把提示词、参考素材、资产和生成结果放进一张可持续迭代的画布。',
     quickStart: '快速开始',
-    demo: '在线体验',
-    gallery: '效果展示',
-    features: '功能介绍',
-    previewAlt: '无限画布效果图',
-    contributors: '开发贡献者',
-    contributorsDescription: '感谢所有为本项目做出贡献的开发者',
-    contributorsAlt: '开发贡献者头像',
+    source: '查看源码',
+    capabilities: '工作台当前包含',
+    capabilityDescriptions: [
+      '在浏览器中组织项目、节点、连线和视口状态。',
+      '通过你配置的渠道执行图片、文本、视频和音频工作流。',
+      '让提示词、参考素材、生成结果和可复用资产保持关联。',
+      '需要时连接本地 Canvas Agent，让 Codex 读取或操作当前画布。',
+    ],
+    foundation: '基于开放画布底座继续开发',
+    foundationDescription:
+      'HuaBu 画布基于开源 infinite-canvas 底座继续构建，产品层聚焦创作工作流、本地项目留存和可追溯迭代。',
+    status: '当前产品边界',
+    statusDescription:
+      '项目仍在持续开发。云端账号、托管存储、计费和卡藏私有能力并未被包装成内置功能。',
   },
 };
 
@@ -93,112 +86,80 @@ export default async function HomePage({ params }: PageProps<'/[lang]'>) {
               rel="noreferrer noopener"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-900 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:border-zinc-500 dark:hover:bg-zinc-900"
             >
-              <img src="/github.svg" alt="" className="size-4" />
-              GitHub
-            </a>
-            <a
-              href={demoUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-900 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:border-zinc-500 dark:hover:bg-zinc-900"
-            >
-              {text.demo}
+              <Code2 className="size-4" />
+              {text.source}
               <ArrowUpRight className="size-4" />
             </a>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl lg:w-[108%] lg:max-w-none">
-          <img
-            src={previewImages[3].src}
-            alt={text.previewAlt}
-            className="aspect-[16/10] w-full rounded-xl object-cover"
-          />
+        <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-950 p-6 shadow-2xl dark:border-zinc-800">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4 text-xs text-zinc-400">
+            <span>HuaBu Canvas</span>
+            <span>Local-first workspace</span>
+          </div>
+          <div className="mt-6 grid min-h-[280px] grid-cols-3 gap-3">
+            <div className="col-span-2 rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-4">
+              <div className="text-xs text-emerald-200">Prompt / reference / result</div>
+              <div className="mt-16 h-2 w-3/4 rounded bg-white/20" />
+              <div className="mt-3 h-2 w-1/2 rounded bg-white/10" />
+            </div>
+            <div className="rounded-lg border border-sky-300/20 bg-sky-300/10 p-4">
+              <div className="text-xs text-sky-100">Assets</div>
+              <div className="mt-8 grid grid-cols-2 gap-2">
+                <div className="aspect-square rounded bg-white/15" />
+                <div className="aspect-square rounded bg-white/10" />
+                <div className="aspect-square rounded bg-white/10" />
+                <div className="aspect-square rounded bg-white/15" />
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <section className="mt-14">
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-zinc-950 dark:text-zinc-50 md:text-3xl">
-              {text.gallery}
-            </h2>
-          </div>
+        <div className="flex items-end justify-between gap-4">
+          <h2 className="text-2xl font-semibold text-zinc-950 dark:text-zinc-50 md:text-3xl">
+            {text.capabilities}
+          </h2>
           <Link
             href={localizePath(locale, '/docs/overview/features')}
-            className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-zinc-800 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-800 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white"
           >
-            {text.features}
+            {text.quickStart}
             <ArrowUpRight className="size-4" />
           </Link>
         </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {previewImages.map((item) => (
-            <img
-              key={item.src}
-              src={item.src}
-              alt={item.title[locale]}
-              loading="lazy"
-              decoding="async"
-              className="aspect-[16/10] w-full rounded-2xl object-cover"
-            />
+        <div className="mt-6 grid gap-x-8 gap-y-5 md:grid-cols-2">
+          {text.capabilityDescriptions.map((description) => (
+            <div
+              key={description}
+              className="flex gap-3 border-t border-zinc-200 pt-4 text-sm leading-7 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400"
+            >
+              <Check className="mt-1 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>{description}</span>
+            </div>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto mt-16 w-full max-w-4xl text-center">
-        <h2 className="text-2xl font-semibold text-zinc-950 dark:text-zinc-50 md:text-3xl">
-          {text.contributors}
-        </h2>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          {text.contributorsDescription}
-        </p>
-        <div className="mt-7 flex justify-center">
-          <a
-            href={`${githubUrl}/graphs/contributors`}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="inline-flex max-w-full"
-          >
-            <img
-              src={`https://contrib.rocks/image?repo=${gitConfig.user}/${gitConfig.repo}`}
-              alt={text.contributorsAlt}
-              loading="lazy"
-              decoding="async"
-              className="max-w-full"
-            />
-          </a>
+      <section className="mt-16 grid gap-8 border-t border-zinc-200 pt-10 dark:border-zinc-800 md:grid-cols-2">
+        <div>
+          <h2 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">{text.foundation}</h2>
+          <p className="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-400">{text.foundationDescription}</p>
         </div>
-      </section>
-
-      <section className="mx-auto mt-16 w-full max-w-5xl text-center">
-        <h2 className="text-2xl font-semibold text-zinc-950 dark:text-zinc-50 md:text-3xl">
-          Star History
-        </h2>
-        <div className="mt-7 flex justify-center">
+        <div>
+          <h2 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">{text.status}</h2>
+          <p className="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-400">{text.statusDescription}</p>
           <a
-            href={starHistoryUrl}
+            href={githubUrl}
             target="_blank"
             rel="noreferrer noopener"
-            className="block w-full max-w-4xl"
+            className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100"
           >
-            <picture>
-              <source
-                media="(prefers-color-scheme: dark)"
-                srcSet={darkStarHistoryChart}
-              />
-              <source
-                media="(prefers-color-scheme: light)"
-                srcSet={starHistoryChart}
-              />
-              <img
-                src={starHistoryChart}
-                alt="Star History Chart"
-                loading="lazy"
-                decoding="async"
-                className="mx-auto w-full"
-              />
-            </picture>
+            <Code2 className="size-4" />
+            {text.source}
+            <ArrowUpRight className="size-4" />
           </a>
         </div>
       </section>
@@ -212,7 +173,7 @@ export async function generateMetadata({ params }: PageProps<'/[lang]'>): Promis
   const text = messages[locale];
 
   return {
-    title: `${appNames[locale]} ${text.center}`,
+    title: `${appNames[locale]} | ${text.center}`,
     description: text.description,
     alternates: {
       languages: {

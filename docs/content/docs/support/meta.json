@@ -1,6 +1,6 @@
 {
-  "title": "Support and Security",
+  "title": "Project Safety",
   "root": true,
   "defaultOpen": true,
-  "pages": ["security", "sponsor"]
+  "pages": ["security"]
 }

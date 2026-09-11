@@ -1,12 +1,14 @@
 <p align="center">
-  <img src="web/public/logo.svg" width="96" alt="infinite-canvas logo">
+  <img src="web/public/logo.svg" width="96" alt="HuaBu Canvas logo">
 </p>
 
-<h1 align="center">无限画布 (infinite-canvas)</h1>
+<h1 align="center">HuaBu 画布</h1>
 
 <p align="center">
-  <a href="https://linux.do/"><img src="https://img.shields.io/badge/Linux.do-Community-2b6de8?style=flat-square" alt="Linux.do"></a>
-  <a href="https://render.com/deploy?repo=https://github.com/Skl-00/huabu-infinite-canvas"><img src="https://img.shields.io/badge/Render-Deploy-46e3b7?style=flat-square&logo=render&logoColor=111111" alt="Deploy to Render"></a>
+  <strong>面向视觉创作工作流的开源画布工作台</strong>
+</p>
+
+<p align="center">
   <a href="https://github.com/Skl-00/huabu-infinite-canvas"><img src="https://img.shields.io/github/stars/Skl-00/huabu-infinite-canvas?style=flat-square&logo=github" alt="GitHub stars"></a>
   <a href="https://github.com/Skl-00/huabu-infinite-canvas/tags"><img src="https://img.shields.io/github/v/tag/Skl-00/huabu-infinite-canvas?style=flat-square&label=version" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-f97316?style=flat-square" alt="License"></a>
@@ -15,99 +17,47 @@
 </p>
 
 <p align="center">
-  <a href="docs/content/docs/overview/quick-start.mdx">快速开始</a> · <a href="docs/content/docs/overview/features.mdx">功能介绍</a> · <a href="docs/content/docs/overview/render.mdx">Render 部署</a> · <a href="docs/content/docs/overview/docker.mdx">Docker 部署</a> · <a href="docs/content/docs/canvas/canvas-node-manual.mdx">画布节点操作手册</a> · <a href="docs/content/docs/canvas/canvas-shortcuts.mdx">画布快捷键</a> · <a href="SECURITY.md">漏洞提交</a> · <a href="docs/content/docs/progress/todo.mdx">待办事项</a> · <a href="canvas-agent/README.md">本地 Canvas Agent</a> · <a href="plugins/infinite-canvas">Codex app 插件</a>
+  <a href="docs/content/docs/overview/quick-start.mdx">快速开始</a> ·
+  <a href="docs/content/docs/overview/features.mdx">功能说明</a> ·
+  <a href="docs/content/docs/canvas/canvas-node-manual.mdx">画布操作</a> ·
+  <a href="docs/content/docs/development/local-development.mdx">本地开发</a> ·
+  <a href="SECURITY.md">安全报告</a> ·
+  <a href="canvas-agent/README.md">Canvas Agent</a> ·
+  <a href="plugins/infinite-canvas">Codex 插件</a>
 </p>
 
-无限画布是一款面向图片创作的开源工作台。它把画布编排、AI 图片生成、参考图编辑、对话助手、提示词库和素材沉淀放在同一个界面里，适合用来探索视觉方案并连续迭代图片结果。
+HuaBu 画布把提示词、参考素材、生成配置、生成结果和可复用资产组织在同一个画布工作流中。项目以浏览器本地存储为默认边界，支持用户配置 OpenAI 兼容渠道，也可以连接本地 Canvas Agent，让 Codex 读取和操作当前画布。
 
-> [!CAUTION]
-> 项目目前处于开发阶段，不保证历史数据兼容。各种本地存储格式都可能直接调整，欢迎关注后续更新。
->
-> 如果你需要稳定维护自己的分支，建议自行 fork 后独立开发。二次开发与 PR 请保留原作者信息和前端页面标识。
+本仓库基于 [basketikun/infinite-canvas](https://github.com/basketikun/infinite-canvas) 的开源源码底座继续开发。HuaBu 的产品层、交互、工作区结构和后续能力会独立演进；本项目不复制闭源产品的代码、品牌、账号体系或私有接口。
 
-## 赞助商
+> [!WARNING]
+> 项目仍处于持续开发阶段。浏览器本地数据格式、节点协议和页面结构可能调整。真实 AI 生成能力取决于你配置的渠道、模型和调用脚本；仓库不会把未验证的 Provider 能力写成已完成能力。
 
-<table>
-  <tr>
-    <td width="190" align="center">
-      <a href="https://www.atlascloud.ai/zh?utm_source=github&utm_medium=link&utm_campaign=infinite-canvas" target="_blank" rel="noopener noreferrer"><img src="assets/atlascloud.svg" width="163" alt="Atlas Cloud"></a>
-    </td>
-    <td>
-      <a href="https://www.atlascloud.ai/zh?utm_source=github&utm_medium=link&utm_campaign=infinite-canvas" target="_blank" rel="noopener noreferrer">Atlas Cloud</a> is a full-modal AI inference platform that gives developers a single AI API to access video generation, image generation, and LLM APIs. Instead of managing multiple vendor integrations, you connect once and get unified access to 300+ curated models across all modalities. Check out <a href="https://www.atlascloud.ai/console/coding-plan" target="_blank" rel="noopener noreferrer">Atlas Cloud's new coding plan promotion</a> for more budget-friendly API access.
-    </td>
-  </tr>
-  <tr>
-    <td width="190" align="center">
-      <a href="https://metaso.cn/minimax-h3/?s=inf" target="_blank" rel="noopener noreferrer"><img src="assets/metaso.jpg" width="163" alt="秘塔科技"></a>
-    </td>
-    <td>
-      <strong>MiniMax H3 视频生成 API｜秘塔科技</strong> 秘塔科技提供高性价比的 MiniMax H3 视频生成服务：<strong>768P 仅 0.09 元/秒，2K 仅 0.15 元/秒</strong>。支持原生 2K、音画同步，API 兼容 <strong>OpenAI 协议</strong>，同时支持 <strong>ComfyUI</strong>，无需自行部署 GPU。 🎁 通过 <a href="https://metaso.cn/minimax-h3/?s=inf" target="_blank" rel="noopener noreferrer">无限画布专属链接注册</a>，即可领取赠送额度及专属优惠。
-    </td>
-  </tr>
-  <tr>
-    <td width="190" align="center">
-      <a href="https://www.infistar.cc/register?aff=4X3V9NA9&ref_source=link" target="_blank" rel="noopener noreferrer"><img src="assets/infistar.png" width="163" alt="Infistar.ai 无限星河"></a>
-    </td>
-    <td>
-      <strong>无限画布 × Infistar.ai 无限星河｜内置原生画布 · 全能多模态 API</strong> 💡 原生集成，即点即用： Infistar.ai 已原生上架无限画布！同时提供低至官方 1 折的稳定 API 中转服务，模型倍率与调用明细全程透明。 🎨 多模态生图/生视频： 完美适配 Seedance、FLUX、Midjourney、Sora、Runway、Luma、可灵（Kling）等顶级图片与视频大模型。 🧠 全系语言模型： 覆盖 OpenAI、Claude、Gemini、Grok、DeepSeek、Qwen、GLM 等国内外主流模型，兼容 OpenAI 标准接口。 ⚡ 动态调度： 多路供应保障高可用，拒绝断连。 🎁 专属福利： 通过 <a href="https://infistar.ai/register?aff=4X3V9NA9&ref_source=link" target="_blank" rel="noopener noreferrer">专属链接</a> 注册，立享赠送额度/专属折扣/首充权益！
-    </td>
-  </tr>
- <tr>
-    <td width="190" align="center">
-      <a href="https://heyroute.ai/basketikun" target="_blank" rel="noopener noreferrer"><img src="assets/heyroute.svg" width="163" alt="HeyRoute"></a>
-    </td>
-    <td>
-      <strong>无限画布 × HeyRoute｜全能多模态 API 服务商</strong>
-      💡&nbsp;HeyRoute 深度接入无限画布，将创意构思、图片生成、视频制作与内容开发融为一体，让每个灵感都能快速落地。
-      🎨&nbsp;多模态创作能力： 支持 AI 生图、生视频、图像编辑及内容生成，兼容 Seedance、MiniMax-H3、Image-2、Grok Video、Flux Klein、Gemini 等主流模型。
-      🧠&nbsp;丰富模型生态： 覆盖 OpenAI、Claude、Gemini、Grok、DeepSeek、Qwen、GLM 等语言模型，并兼容 OpenAI 标准接口。
-      ⚡&nbsp;稳定高效调用： 支持多模型、多线路灵活调度，调用记录清晰透明，满足日常创作、应用开发与批量生产需求。
-      🎁&nbsp;专属福利： 通过 <a href="https://heyroute.ai/basketikun">专属链接</a> 注册，即可领取新用户 15 美元试用额度！
-    </td>
-  </tr>
-  <tr>
-    <td width="190" align="center">
-      <a href="https://www.packyapi.com/register?aff=34VV" target="_blank" rel="noopener noreferrer"><img src="assets/packycode.png" width="163" alt="PackyCode"></a>
-    </td>
-    <td>
-      <strong>无限画布 × PackyCode｜稳定高效的 API 中转服务商</strong>
-      💡&nbsp;PackyCode 是一家稳定、高效的 API 中转服务商，提供 Claude Code、Codex、Gemini 等多种中转服务，让 AI 编程成为真正的生产力工具。
-      ⚡&nbsp;稳定高效： 具备自动故障转移、智能路由和无限并发等多种功能，保障调用稳定可靠。
-      🎁&nbsp;专属福利： 通过 <a href="https://www.packyapi.com/register?aff=34VV" target="_blank" rel="noopener noreferrer">专属链接</a> 注册，立即开始使用！
-    </td>
-  </tr>
-</table>
+## 当前能力
 
-## 核心功能
-
-- 无限画布：多画布项目、节点拖拽缩放、连线、小地图、撤销重做、导入导出。
-- AI 创作：浏览器前台直连你配置的 OpenAI 兼容接口，支持文生图、图生图、参考图编辑、文本问答、音频和视频生成。
-- 画布助手：围绕选中节点和上游节点对话、生图，并把结果插回画布。
-- 本地 Agent：通过本机 Canvas Agent 连接 Codex / Claude Code，让 Agent 通过 MCP 操作当前画布；
-- Codex App 插件：提供 Codex app 插件，安装后会自动注册 MCP 并尝试拉起本地 Agent。
-- 插件系统：支持通过 URL 动态安装 / 启用 / 更新 / 卸载远程节点插件，并提供 TypeScript SDK 自行开发画布节点插件。
-- 自定义接口调用：可自定义生图 / 视频接口的调用方式，灵活适配各类中转站与自建服务。
-- 提示词库：内置 7 个开源提示词来源并支持自定义标准 JSON 来源，由浏览器前端直连并缓存到 IndexedDB。
-
-完整功能说明见 [功能介绍](docs/content/docs/overview/features.mdx)。
-
-如果你在为担心没有合适的生图API来发愁，可以查看该免费生图项目：[chatgpt2api](https://github.com/basketikun/chatgpt2api)
+- 画布项目：创建、重命名、复制、删除、导入、导出和多工作画布管理。
+- 画布操作：拖拽、缩放、框选、多选、复制粘贴、撤销重做、小地图、背景和连线设置。
+- 节点工作流：文本、图片、视频、音频、生成配置、分组和插件节点。
+- AI 调用：用户自配 OpenAI 兼容渠道，支持图片、文本、视频和音频能力，以及自定义调用脚本。
+- 生成记录：保留生成参数、参考素材、结果节点和失败/重试状态，便于继续迭代。
+- 提示词与资产：搜索提示词来源，收藏提示词、图片和其他可复用素材，并插回画布。
+- 本地 Agent：通过 Canvas Agent 和 `infinite-canvas` MCP 让 Codex 读取或操作画布。
+- 插件系统：通过插件扩展节点类型、渲染、检查器、迁移和可选的生成能力。
 
 ## 快速开始
-
-AI API Key、Base URL、画布、素材和生成记录默认保存在浏览器本地。
 
 ### 本地开发
 
 ```bash
 git clone git@github.com:Skl-00/huabu-infinite-canvas.git
-cd huabu-infinite-canvas
-cd web
+cd huabu-infinite-canvas/web
 bun install
 bun run dev
 ```
 
-### Docker 运行
+默认访问 `http://localhost:3000`。当前本地验收使用的端口可以通过 Vite 参数调整。
+
+### Docker
 
 ```bash
 git clone git@github.com:Skl-00/huabu-infinite-canvas.git
@@ -115,61 +65,35 @@ cd huabu-infinite-canvas
 docker compose up -d
 ```
 
-运行后默认端口3000，可访问 `http://localhost:3000`。
+也可以直接构建镜像：
 
-首次打开后进入右上角配置，填入自己的 OpenAI 兼容 `Base URL` 和 `API Key`。
+```bash
+docker build -t huabu-canvas .
+docker run --rm -p 3000:3000 huabu-canvas
+```
 
-如果默认的OpenAI接口调用方式与您的API不同，可自定义生图/视频脚本调用。
+首次打开后，在设置中填入自己的 Base URL、API Key 和模型名称。项目默认从浏览器直连你配置的 OpenAI 兼容接口；API Key 和画布数据不会上传到本仓库。
 
-## 效果展示
+## 文档
 
-<table width="100%">
-  <tr>
-    <td width="50%"><img src="https://i.ibb.co/TDFvGWDT/image.png" alt="image" border="0"></td>
-    <td width="50%"><img src="https://i.ibb.co/zVwJq3YS/image.png" alt="image" border="0"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="https://i.ibb.co/PvY3qhhK/image.png" alt="image" border="0"></td>
-    <td width="50%"><img src="https://i.ibb.co/7D04LwN/image.png" alt="image" border="0"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="https://i.ibb.co/bj30FtS5/5.png" alt="5" border="0"></td>
-    <td width="50%"><img src="https://i.ibb.co/hxRvjw51/image.png" alt="image" border="0"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="https://i.ibb.co/jkWsF8q1/image.png" alt="image" border="0"></td>
-    <td width="50%"><img src="https://i.ibb.co/XrnfXHx7/image.png" alt="image" border="0"></td>
-  </tr>
-</table>
+- [快速开始](docs/content/docs/overview/quick-start.mdx)
+- [功能说明](docs/content/docs/overview/features.mdx)
+- [画布节点操作手册](docs/content/docs/canvas/canvas-node-manual.mdx)
+- [画布快捷键](docs/content/docs/canvas/canvas-shortcuts.mdx)
+- [Canvas Agent 与 MCP](docs/content/docs/development/local-codex-canvas.mdx)
+- [插件开发](plugins/infinite-canvas/README.md)
+- [项目进度与待办](docs/content/docs/progress/todo.mdx)
 
-## 联系方式
+## 数据与兼容边界
 
-项目定制二次开发需求 / 生图 API 需求可联系。
+默认情况下，项目、资产、生成记录和配置保存在浏览器本地。WebDAV 是可选的用户配置能力，不代表项目提供云端账号或托管存储。
 
-邮箱：1844025705@qq.com · QQ：1844025705
+`infinite-canvas` 作为 MCP 名称、插件命名空间、localForage 数据库名、导入导出标识和部分包名保留，用于兼容已有数据与工具链。这些技术名称不等同于产品品牌。
 
-## 赞助支持
+## 参与项目
 
-本项目长期开放广告赞助合作，欢迎品牌 / 产品投放，你的支持是持续更新的动力！
+请在 [HuaBu 画布仓库](https://github.com/Skl-00/huabu-infinite-canvas) 提交可复现的 Issue、功能建议、文档改进或代码贡献。公开 Issue 不要包含 API Key、个人数据、私密业务资料或安全漏洞细节；安全问题请遵循 [SECURITY.md](SECURITY.md)。
 
-有广告赞助意向请通过上方联系方式沟通。
+## 开源协议与来源
 
-## 社区支持
-
-学 AI，上 L 站：[LinuxDO](https://linux.do/)
-
-点击链接加入群聊【开源无限画布(2群)】：https://qm.qq.com/q/HRt2kUnYiG
-
-## 开源协议
-
-本项目使用 [MIT License](LICENSE)。任何人都可以免费使用、复制、修改、分发、再授权和商业使用本项目，也可以用于闭源产品。
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=Skl-00%2Fhuabu-infinite-canvas&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Skl-00/huabu-infinite-canvas&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Skl-00/huabu-infinite-canvas&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Skl-00/huabu-infinite-canvas&type=date&legend=top-left" />
- </picture>
-</a>
+本项目使用 [MIT License](LICENSE)。上游底座来源为 [basketikun/infinite-canvas](https://github.com/basketikun/infinite-canvas)，上游许可证和来源说明继续保留。提示词来源见[第三方提示词来源文档](docs/content/docs/overview/third-party-prompt-repositories.mdx)。

@@ -1,4 +1,4 @@
-# 无限画布文档索引
+# HuaBu 画布文档索引
 
 ## 项目介绍
 
@@ -18,15 +18,12 @@
 - [本地开发](/zh-CN/docs/development/local-development)
 - [画布数据结构](/zh-CN/docs/development/canvas-data-structure)
 
-## 商务合作
+## 项目说明
 
 - [开源协议](/zh-CN/docs/business/license)
 - [商务合作](/zh-CN/docs/business/business)
 
-## 支持与安全
-
 - [漏洞提交](/zh-CN/docs/support/security)
-- [赞助支持](/zh-CN/docs/support/sponsor)
 
 ## 项目进度
 
@@ -36,8 +33,9 @@
 
 ## 说明
 
-- 当前画布项目和“我的素材”主要保存在浏览器本地，跨设备可自行配置 WebDAV 同步。
+- HuaBu 画布项目和“我的素材”主要保存在浏览器本地，跨设备可自行配置 WebDAV 同步。
 - AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
+- 产品层基于开源 infinite-canvas 底座继续开发，协议名称和兼容键保持不变。
 
 ## 原理说明
 
