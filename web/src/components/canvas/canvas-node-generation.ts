@@ -64,7 +64,11 @@ export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData
 }
 
 function buildComposerGenerationContext(inputs: NodeGenerationInput[], prompt: string): NodeGenerationContext {
-    const inputByNodeId = new Map(inputs.map((input) => [input.nodeId, input]));
+    const inputByNodeId = new Map<string, NodeGenerationInput>();
+    inputs.forEach((input) => {
+        inputByNodeId.set(input.nodeId, input);
+        if (input.type === "group") input.children.forEach((child) => inputByNodeId.set(child.nodeId, child));
+    });
     const selectedInputs: NodeGenerationResourceInput[] = [];
     const labelByNodeId = new Map<string, string>();
     const textBlocks: string[] = [];

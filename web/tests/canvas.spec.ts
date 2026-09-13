@@ -510,6 +510,205 @@ test("disconnecting a reference removes it from the compiled execution context",
     expect(result.disconnected).toBe(0);
 });
 
+test("Config aggregates direct, grouped and repeated references for the execution target", async ({ page }) => {
+    await enterCanvas(page);
+    const result = await page.evaluate(async () => {
+        const { buildNodeGenerationContext } = await import("/src/components/canvas/canvas-node-generation.ts");
+        const nodes = [
+            { id: "image-a", type: "image", title: "图 A", position: { x: 0, y: 0 }, width: 160, height: 160, metadata: { content: "data:image/png;base64,YQ==" } },
+            { id: "image-b", type: "image", title: "图 B", position: { x: 0, y: 220 }, width: 160, height: 160, metadata: { content: "data:image/png;base64,Yg==" } },
+            { id: "group", type: "group", title: "参考组", position: { x: 220, y: 0 }, width: 320, height: 420, metadata: {} },
+            { id: "config", type: "config", title: "配置", position: { x: 600, y: 0 }, width: 240, height: 240, metadata: {} },
+            { id: "target", type: "image", title: "执行目标", position: { x: 900, y: 0 }, width: 240, height: 240, metadata: {} },
+        ];
+        nodes[1].metadata.groupId = "group";
+        const connections = [
+            { id: "a-config", fromNodeId: "image-a", toNodeId: "config" },
+            { id: "b-config", fromNodeId: "image-b", toNodeId: "config" },
+            { id: "a-target", fromNodeId: "image-a", toNodeId: "target" },
+            { id: "group-target", fromNodeId: "group", toNodeId: "target" },
+            { id: "config-target", fromNodeId: "config", toNodeId: "target" },
+        ];
+        const context = buildNodeGenerationContext("target", nodes as any, connections, "主体 @[node:image-a]，补充 @[node:group]");
+        return {
+            imageCount: context.imageCount,
+            prompt: context.prompt,
+            ids: context.referenceImages.map((item) => item.id),
+        };
+    });
+    expect(result.imageCount).toBe(2);
+    expect(result.ids).toEqual(["image-a", "image-b"]);
+    expect(result.prompt).toContain("主体 @[node:image-a]");
+});
+
+test("Config composer selects a group member with @ while preserving ordinary prompt text", async ({ page }) => {
+    await enterCanvas(page);
+    const result = await page.evaluate(async () => {
+        const { buildNodeGenerationContext } = await import("/src/components/canvas/canvas-node-generation.ts");
+        const nodes = [
+            { id: "image-a", type: "image", title: "图 A", position: { x: 0, y: 0 }, width: 160, height: 160, metadata: { content: "data:image/png;base64,YQ==" } },
+            { id: "image-b", type: "image", title: "图 B", position: { x: 0, y: 220 }, width: 160, height: 160, metadata: { content: "data:image/png;base64,Yg==" } },
+            { id: "group", type: "group", title: "参考组", position: { x: 220, y: 0 }, width: 320, height: 420, metadata: {} },
+            { id: "config", type: "config", title: "配置", position: { x: 600, y: 0 }, width: 240, height: 240, metadata: { composerContent: "只参考 @[node:image-b]，保留普通提示词" } },
+        ];
+        nodes[1].metadata.groupId = "group";
+        const connections = [
+            { id: "group-config", fromNodeId: "group", toNodeId: "config" },
+        ];
+        const context = buildNodeGenerationContext("config", nodes as any, connections, nodes[3].metadata.composerContent);
+        return { imageCount: context.imageCount, ids: context.referenceImages.map((item) => item.id), prompt: context.prompt };
+    });
+    expect(result.imageCount).toBe(1);
+    expect(result.ids).toEqual(["image-b"]);
+    expect(result.prompt).toContain("只参考");
+    expect(result.prompt).toContain("图片1");
+});
+
+test("connected video references reach OpenAI multipart fields", async ({ page }) => {
+    await enterCanvas(page);
+    let requestBody: Buffer | null = null;
+    await page.route("https://canvas-video-openai.invalid/**", async (route) => {
+        requestBody = route.request().postDataBuffer();
+        await route.fulfill({ status: 200, contentType: "application/json", json: { id: "video-task" } });
+    });
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const { setMediaBlob } = await import("/src/services/file-storage.ts");
+        const { createVideoGenerationTask } = await import("/src/services/api/video.ts");
+        const current = useConfigStore.getState().config;
+        const config = {
+            ...current,
+            proxyEnabled: false,
+            model: "video::openai-video",
+            videoModel: "video::openai-video",
+            videoMode: "reference",
+            channels: [{
+                id: "video",
+                name: "Video multipart QA",
+                baseUrl: "https://canvas-video-openai.invalid/v1",
+                apiKey: "video-openai-test-key",
+                apiFormat: "openai" as const,
+                models: [{ name: "openai-video", capability: "video" as const }],
+            }],
+        };
+        useConfigStore.setState({ config });
+        await setMediaBlob("video:qa-reference", new Blob(["video"], { type: "video/mp4" }));
+        await setMediaBlob("audio:qa-reference", new Blob(["audio"], { type: "audio/mpeg" }));
+        await createVideoGenerationTask(
+            config,
+            "video with references",
+            [{ id: "image", name: "reference.png", type: "image/png", dataUrl: "data:image/png;base64,cG5n" }],
+            {
+                videos: [{ id: "video", name: "reference.mp4", type: "video/mp4", url: "", storageKey: "video:qa-reference" }],
+                audios: [{ id: "audio", name: "reference.mp3", type: "audio/mpeg", url: "", storageKey: "audio:qa-reference" }],
+            },
+        );
+    });
+    await expect.poll(() => requestBody).toBeTruthy();
+    const body = requestBody!.toString();
+    expect(body).toContain('name="image[]"');
+    expect(body).toContain('name="video[]"');
+    expect(body).toContain('name="audio[]"');
+});
+
+test("connected video references reach Gemini JSON fields", async ({ page }) => {
+    await enterCanvas(page);
+    let requestBody: any = null;
+    await page.route("https://canvas-video-gemini.invalid/**", async (route) => {
+        requestBody = route.request().postDataJSON();
+        await route.fulfill({ status: 200, contentType: "application/json", json: { name: "operations/video-task" } });
+    });
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const { setMediaBlob } = await import("/src/services/file-storage.ts");
+        const { createVideoGenerationTask } = await import("/src/services/api/video.ts");
+        const current = useConfigStore.getState().config;
+        const config = {
+            ...current,
+            proxyEnabled: false,
+            model: "video::gemini-video",
+            videoModel: "video::gemini-video",
+            videoMode: "reference",
+            channels: [{
+                id: "video",
+                name: "Video Gemini QA",
+                baseUrl: "https://canvas-video-gemini.invalid",
+                apiKey: "video-gemini-test-key",
+                apiFormat: "gemini" as const,
+                models: [{ name: "gemini-video", capability: "video" as const }],
+            }],
+        };
+        useConfigStore.setState({ config });
+        await setMediaBlob("video:qa-gemini-reference", new Blob(["video"], { type: "video/mp4" }));
+        await setMediaBlob("audio:qa-gemini-reference", new Blob(["audio"], { type: "audio/mpeg" }));
+        await createVideoGenerationTask(
+            config,
+            "video with references",
+            [{ id: "image", name: "reference.png", type: "image/png", dataUrl: "data:image/png;base64,cG5n" }],
+            {
+                videos: [{ id: "video", name: "reference.mp4", type: "video/mp4", url: "", storageKey: "video:qa-gemini-reference" }],
+                audios: [{ id: "audio", name: "reference.mp3", type: "audio/mpeg", url: "", storageKey: "audio:qa-gemini-reference" }],
+            },
+        );
+    });
+    await expect.poll(() => requestBody).toBeTruthy();
+    expect(requestBody.instances[0].referenceImages).toHaveLength(1);
+    expect(requestBody.instances[0].video.bytesBase64Encoded).toBeTruthy();
+    expect(requestBody.instances[0].audio.bytesBase64Encoded).toBeTruthy();
+});
+
+test("canvas video target compiles connected image, video and audio nodes into one Provider request", async ({ page }) => {
+    await enterCanvas(page);
+    let requestBody: Buffer | null = null;
+    await page.route("https://canvas-video-graph.invalid/**", async (route) => {
+        requestBody = route.request().postDataBuffer();
+        await route.fulfill({ status: 200, contentType: "application/json", json: { id: "video-graph-task" } });
+    });
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const { setMediaBlob } = await import("/src/services/file-storage.ts");
+        const { buildNodeGenerationContext, hydrateNodeGenerationContext } = await import("/src/components/canvas/canvas-node-generation.ts");
+        const { createVideoGenerationTask } = await import("/src/services/api/video.ts");
+        const current = useConfigStore.getState().config;
+        const config = {
+            ...current,
+            proxyEnabled: false,
+            model: "video::graph-video",
+            videoModel: "video::graph-video",
+            videoMode: "reference",
+            channels: [{
+                id: "video",
+                name: "Video graph QA",
+                baseUrl: "https://canvas-video-graph.invalid/v1",
+                apiKey: "video-graph-test-key",
+                apiFormat: "openai" as const,
+                models: [{ name: "graph-video", capability: "video" as const }],
+            }],
+        };
+        useConfigStore.setState({ config });
+        await setMediaBlob("video:graph-reference", new Blob(["video"], { type: "video/mp4" }));
+        await setMediaBlob("audio:graph-reference", new Blob(["audio"], { type: "audio/mpeg" }));
+        const nodes = [
+            { id: "image", type: "image", title: "参考图", position: { x: 0, y: 0 }, width: 160, height: 160, metadata: { content: "data:image/png;base64,cG5n" } },
+            { id: "video", type: "video", title: "参考视频", position: { x: 0, y: 220 }, width: 160, height: 120, metadata: { storageKey: "video:graph-reference", content: "" } },
+            { id: "audio", type: "audio", title: "参考音频", position: { x: 0, y: 400 }, width: 160, height: 100, metadata: { storageKey: "audio:graph-reference", content: "" } },
+            { id: "target", type: "video", title: "执行视频", position: { x: 360, y: 120 }, width: 240, height: 180, metadata: {} },
+        ];
+        const connections = [
+            { id: "image-target", fromNodeId: "image", toNodeId: "target" },
+            { id: "video-target", fromNodeId: "video", toNodeId: "target" },
+            { id: "audio-target", fromNodeId: "audio", toNodeId: "target" },
+        ];
+        const context = await hydrateNodeGenerationContext(buildNodeGenerationContext("target", nodes as any, connections, "按参考素材生成视频"));
+        await createVideoGenerationTask(config, context.prompt, context.referenceImages, { videos: context.referenceVideos, audios: context.referenceAudios });
+        return { imageCount: context.imageCount, videoCount: context.videoCount, audioCount: context.audioCount };
+    });
+    await expect.poll(() => requestBody).toBeTruthy();
+    expect(requestBody!.toString()).toContain('name="image[]"');
+    expect(requestBody!.toString()).toContain('name="video[]"');
+    expect(requestBody!.toString()).toContain('name="audio[]"');
+});
+
 test("connected storage-only image reference reaches the real image edit multipart body", async ({ page }) => {
     await enterCanvas(page);
     const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
