@@ -520,7 +520,7 @@ test("plugin text abort preserves partial content without an implicit resubmissi
         "    React.useEffect(() => {",
         "      const controller = new AbortController();",
         "      void ctx.ai.generateText('Plugin interrupted text', { signal: controller.signal }).catch(() => undefined);",
-        "      setTimeout(() => controller.abort(), 120);",
+        "      setTimeout(() => controller.abort(), 300);",
         "    }, [ctx.node.id]);",
         "    return jsx('div', { 'data-testid': 'plugin-interrupted-text-content' }, 'plugin interrupted');",
         "  }",

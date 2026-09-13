@@ -208,6 +208,7 @@ export function usePluginHost(params: PluginHostParams) {
                 const config = { ...nodeModelConfig("text", options?.model), ...(options?.system !== undefined ? { systemPrompt: options.system } : {}) };
                 ensureReady(config);
                 const targetNodeId = options?.runContext?.targetNodeId;
+                const references = toReferences(options?.references);
                 const requestKey = runKey("text", targetNodeId, prompt, config.model, { system: config.systemPrompt, references: options?.references || [] });
                 const existing = await findExistingRun("text", targetNodeId, prompt, config.model, requestKey, options?.allowRepeat, loadTextRuns, () => useTextRunStore.getState().runs);
                 if (existing?.status === "succeeded") {
@@ -220,6 +221,7 @@ export function usePluginHost(params: PluginHostParams) {
                         const run = await startTextRun({
                             prompt,
                             config,
+                            references,
                             canvas: runContext(targetNodeId, options?.runContext),
                             signal: options?.signal,
                             onDelta,

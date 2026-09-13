@@ -21,6 +21,7 @@ export type CanvasResourceReference = {
 export type CanvasReferenceSource = {
     node: CanvasNodeData;
     sourceNodeId: string;
+    connectionTargetId: string;
 };
 
 export function buildNodeMentionReferences(node: CanvasNodeData, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
@@ -79,13 +80,13 @@ export function getCanvasReferenceSources(nodeId: string, nodes: CanvasNodeData[
             if (source.type === CanvasNodeType.Config) {
                 return getContextInputNodes(source.id, nodes, connections).flatMap((input) =>
                     input.type === CanvasNodeType.Group
-                        ? getGroupResourceNodes(input.id, nodes).map((node) => ({ node, sourceNodeId: source.id }))
-                        : [{ node: input, sourceNodeId: source.id }],
+                        ? getGroupResourceNodes(input.id, nodes).map((node) => ({ node, sourceNodeId: source.id, connectionTargetId: nodeId }))
+                        : [{ node: input, sourceNodeId: source.id, connectionTargetId: nodeId }],
                 );
             }
             return source.type === CanvasNodeType.Group
-                ? getGroupResourceNodes(source.id, nodes).map((node) => ({ node, sourceNodeId: source.id }))
-                : [{ node: source, sourceNodeId: source.id }];
+                ? getGroupResourceNodes(source.id, nodes).map((node) => ({ node, sourceNodeId: source.id, connectionTargetId: nodeId }))
+                : [{ node: source, sourceNodeId: source.id, connectionTargetId: nodeId }];
         });
     return [...new Map(sources.map((source) => [source.node.id, source])).values()];
 }

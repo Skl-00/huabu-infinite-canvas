@@ -44,7 +44,7 @@ async function freezeReferences(references: ReferenceImage[]) {
         }
         const stored = await uploadImage(item.dataUrl);
         if (!stored.storageKey) throw new Error(`参考图「${item.name}」无法保存到本地，未提交生成`);
-        return { ...item, dataUrl: stored.url, storageKey: stored.storageKey };
+        return { ...item, dataUrl: await imageToDataUrl({ storageKey: stored.storageKey, url: stored.url }), storageKey: stored.storageKey };
     }));
 }
 
@@ -86,10 +86,22 @@ export async function startTextRun(input: {
             input.onCreated?.(id!);
             await updateTextRun(id!, (item) => ({ ...item, status: "running" }));
             if (input.agentTaskId) useWorkbenchAgentStore.getState().updateTask(input.agentTaskId, { status: "running" });
-            if (input.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+            let abortRequested = Boolean(input.signal?.aborted);
+            const onAbort = () => {
+                abortRequested = true;
+                void updateTextRun(id!, (item) => ({
+                    ...item,
+                    status: "interrupted",
+                    error: item.partialContent
+                        ? "文本请求已中断，已保留已接收内容；服务端状态未知。"
+                        : "文本请求已中断，服务端状态未知。",
+                })).catch(() => undefined);
+            };
+            input.signal?.addEventListener("abort", onAbort, { once: true });
             let partial = "";
             let lastPartialPersistAt = 0;
             try {
+                if (abortRequested) throw new DOMException("Aborted", "AbortError");
                 const messages = references.length
                     ? [{
                           role: "user" as const,
@@ -104,11 +116,14 @@ export async function startTextRun(input: {
                         void updateTextRun(id!, (item) => ({ ...item, partialContent: text })).catch(() => undefined);
                     }
                 }, { signal: input.signal });
+                if (abortRequested || input.signal?.aborted) throw new DOMException("Aborted", "AbortError");
                 const finalContent = content || partial;
                 await updateTextRun(id!, (item) => ({ ...item, status: "succeeded", content: finalContent, partialContent: finalContent, error: undefined }));
             } catch (error) {
-                const aborted = error instanceof DOMException && error.name === "AbortError";
+                const aborted = abortRequested || (error instanceof DOMException && error.name === "AbortError");
                 await updateTextRun(id!, (item) => ({ ...item, status: aborted ? "interrupted" : "failed", error: safeError(error, config) })).catch(() => undefined);
+            } finally {
+                input.signal?.removeEventListener("abort", onAbort);
             }
             const completed = currentRun(id!);
             if (completed.agentTaskId) useWorkbenchAgentStore.getState().updateTask(completed.agentTaskId, {

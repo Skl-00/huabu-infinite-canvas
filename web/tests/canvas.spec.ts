@@ -541,6 +541,35 @@ test("Config aggregates direct, grouped and repeated references for the executio
     expect(result.prompt).toContain("主体 @[node:image-a]");
 });
 
+test("the real canvas direction resources into Config compiles and disconnects the real edge", async ({ page }) => {
+    await enterCanvas(page);
+    const result = await page.evaluate(async () => {
+        const { buildNodeGenerationContext } = await import("/src/components/canvas/canvas-node-generation.ts");
+        const { getCanvasReferenceSources } = await import("/src/lib/canvas/canvas-resource-references.ts");
+        const nodes = [
+            { id: "text", type: "text", title: "提示词", position: { x: 0, y: 0 }, width: 200, height: 160, metadata: { content: "保留人物身份" } },
+            { id: "image", type: "image", title: "参考图", position: { x: 0, y: 220 }, width: 160, height: 160, metadata: { content: "data:image/png;base64,YQ==" } },
+            { id: "config", type: "config", title: "配置", position: { x: 360, y: 120 }, width: 240, height: 240, metadata: {} },
+        ];
+        const connections = [
+            { id: "text-config", fromNodeId: "text", toNodeId: "config" },
+            { id: "image-config", fromNodeId: "image", toNodeId: "config" },
+        ];
+        const context = buildNodeGenerationContext("config", nodes as any, connections, "生成结果");
+        const sources = getCanvasReferenceSources("config", nodes as any, connections);
+        return {
+            prompt: context.prompt,
+            imageCount: context.imageCount,
+            sourceTargets: sources.map((source) => source.connectionTargetId),
+            sourceIds: sources.map((source) => source.sourceNodeId),
+        };
+    });
+    expect(result.prompt).toContain("保留人物身份");
+    expect(result.imageCount).toBe(1);
+    expect(result.sourceTargets).toEqual(["config", "config"]);
+    expect(result.sourceIds).toEqual(["text", "image"]);
+});
+
 test("Config composer selects a group member with @ while preserving ordinary prompt text", async ({ page }) => {
     await enterCanvas(page);
     const result = await page.evaluate(async () => {
