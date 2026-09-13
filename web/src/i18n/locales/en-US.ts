@@ -622,12 +622,13 @@ export default {
             testFailed: "WebDAV connection test failed",
             preparing: "Preparing to sync",
             failed: "WebDAV sync failed",
-            completed: "Sync complete: {{projects}} canvases, {{assets}} assets, {{records}} records, and {{files}} files ({{bytes}}) uploaded",
+            completed: "Sync complete: {{projects}} canvases, {{assets}} assets, {{records}} legacy records, {{generationRuns}} generation tasks, and {{files}} files ({{bytes}}) uploaded",
             domains: {
                 canvas: "Canvases",
                 assets: "My Assets",
                 imageWorkbench: "Image Studio",
                 videoWorkbench: "Video Studio",
+                generationRuns: "Generation tasks",
             },
             stages: {
                 waiting: "Waiting",

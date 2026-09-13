@@ -622,12 +622,13 @@ export default {
             testFailed: "WebDAV 连接测试失败",
             preparing: "准备同步",
             failed: "WebDAV 同步失败",
-            completed: "同步完成：{{projects}} 个画布，{{assets}} 个资产，{{records}} 条记录，本次上传 {{files}} 个文件 {{bytes}}",
+            completed: "同步完成：{{projects}} 个画布，{{assets}} 个资产，{{records}} 条旧记录，{{generationRuns}} 个生成任务，本次上传 {{files}} 个文件 {{bytes}}",
             domains: {
                 canvas: "画布",
                 assets: "我的资产",
                 imageWorkbench: "生图工作台",
                 videoWorkbench: "视频创作台",
+                generationRuns: "生成任务",
             },
             stages: {
                 waiting: "等待同步",

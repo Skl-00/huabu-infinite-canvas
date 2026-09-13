@@ -9,13 +9,23 @@ import { useAssetStore } from "@/stores/use-asset-store";
 import type { WebdavSyncConfig } from "@/stores/use-config-store";
 import type { CanvasDeletedProject, CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { imageRunStorage, loadImageRuns, useImageRunStore } from "@/stores/use-image-run-store";
+import { videoRunStorage, loadVideoRuns, useVideoRunStore } from "@/stores/use-video-run-store";
+import { audioRunStorage, loadAudioRuns, useAudioRunStore } from "@/stores/use-audio-run-store";
+import { textRunStorage, loadTextRuns, useTextRunStore } from "@/stores/use-text-run-store";
+import type { ImageRun } from "@/types/image-run";
+import type { VideoRun } from "@/types/video-run";
+import type { AudioRun } from "@/types/audio-run";
+import type { TextRun } from "@/types/text-run";
 
 type StoredLog = Record<string, unknown> & { id?: string };
-export type AppSyncDomainKey = "canvas" | "assets" | "image-workbench" | "video-workbench";
+export type AppSyncDomainKey = "canvas" | "assets" | "image-workbench" | "video-workbench" | "generation-runs";
 type DomainKey = AppSyncDomainKey;
 type CanvasDomainData = { projects: CanvasProject[]; deleted: CanvasDeletedProject[] };
 type AssetDomainData = { assets: Asset[] };
 type LogDomainData = { logs: StoredLog[] };
+type GenerationRun = ImageRun | VideoRun | AudioRun | TextRun;
+type GenerationDomainData = { runs: GenerationRun[] };
 
 type AppSyncFile = {
     storageKey: string;
@@ -58,6 +68,7 @@ export type AppSyncResult = {
     assets: number;
     imageLogs: number;
     videoLogs: number;
+    generationRuns: number;
     files: number;
     manifestBytes: number;
     uploadedFiles: number;
@@ -83,9 +94,16 @@ const storageKeyPattern = /^(image|video|audio|file|video-reference|audio-refere
 
 export async function syncAppDataToWebdav(config: WebdavSyncConfig, onProgress?: AppSyncProgress): Promise<AppSyncResult> {
     emitProgress(onProgress, { stage: "等待本地数据加载" });
-    await Promise.all([waitForHydration(useCanvasStore), waitForHydration(useAssetStore)]);
+    await Promise.all([
+        waitForHydration(useCanvasStore),
+        waitForHydration(useAssetStore),
+        waitForHydration(useImageRunStore),
+        waitForHydration(useVideoRunStore),
+        waitForHydration(useAudioRunStore),
+        waitForHydration(useTextRunStore),
+    ]);
 
-    const [canvas, assets, imageLogs, videoLogs] = await Promise.all([
+    const [canvas, assets, imageLogs, videoLogs, generation] = await Promise.all([
         syncDomain<CanvasDomainData>(config, onProgress, {
             key: "canvas",
             label: "画布",
@@ -121,19 +139,38 @@ export async function syncAppDataToWebdav(config: WebdavSyncConfig, onProgress?:
             mergeData: (local, remote) => ({ logs: mergeById(local.logs, remote.logs, "createdAt") }),
             applyData: async (data) => replaceStoredLogs(videoLogStore, data.logs),
         }),
+        syncDomain<GenerationDomainData>(config, onProgress, {
+            key: "generation-runs",
+            label: "生成任务",
+            emptyData: { runs: [] },
+            localData: async () => ({
+                runs: [
+                    ...useImageRunStore.getState().runs,
+                    ...useVideoRunStore.getState().runs,
+                    ...useAudioRunStore.getState().runs,
+                    ...useTextRunStore.getState().runs,
+                ].map(sanitizeGenerationRun),
+            }),
+            mergeData: (local, remote) => ({ runs: mergeById(local.runs, remote.runs, "updatedAt") }),
+            applyData: async (data) => {
+                await replaceGenerationRuns(data.runs);
+                await Promise.all([loadImageRuns(), loadVideoRuns(), loadAudioRuns(), loadTextRuns()]);
+            },
+        }),
     ]);
 
     const result = {
         syncedAt: new Date().toISOString(),
-        mergedRemote: [canvas, assets, imageLogs, videoLogs].some((item) => item.mergedRemote),
+        mergedRemote: [canvas, assets, imageLogs, videoLogs, generation].some((item) => item.mergedRemote),
         projects: canvas.data.projects.length,
         assets: assets.data.assets.length,
         imageLogs: imageLogs.data.logs.length,
         videoLogs: videoLogs.data.logs.length,
-        files: canvas.files + assets.files + imageLogs.files + videoLogs.files,
-        manifestBytes: canvas.manifestBytes + assets.manifestBytes + imageLogs.manifestBytes + videoLogs.manifestBytes,
-        uploadedFiles: canvas.uploadedFiles + assets.uploadedFiles + imageLogs.uploadedFiles + videoLogs.uploadedFiles,
-        uploadedBytes: canvas.uploadedBytes + assets.uploadedBytes + imageLogs.uploadedBytes + videoLogs.uploadedBytes,
+        generationRuns: generation.data.runs.length,
+        files: canvas.files + assets.files + imageLogs.files + videoLogs.files + generation.files,
+        manifestBytes: canvas.manifestBytes + assets.manifestBytes + imageLogs.manifestBytes + videoLogs.manifestBytes + generation.manifestBytes,
+        uploadedFiles: canvas.uploadedFiles + assets.uploadedFiles + imageLogs.uploadedFiles + videoLogs.uploadedFiles + generation.uploadedFiles,
+        uploadedBytes: canvas.uploadedBytes + assets.uploadedBytes + imageLogs.uploadedBytes + videoLogs.uploadedBytes + generation.uploadedBytes,
     };
     emitProgress(onProgress, { stage: "同步完成", status: "success" });
     return result;
@@ -293,6 +330,42 @@ async function replaceStoredLogs(store: LogStore, logs: StoredLog[]) {
         const id = getStringField(log, "id");
         if (id) await store.setItem(id, log);
     });
+}
+
+async function replaceGenerationRuns(runs: GenerationRun[]) {
+    const byKind = {
+        image: imageRunStorage,
+        video: videoRunStorage,
+        audio: audioRunStorage,
+        text: textRunStorage,
+    } as const;
+    const grouped = new Map<GenerationRun["kind"], GenerationRun[]>();
+    for (const run of runs) {
+        const list = grouped.get(run.kind) || [];
+        list.push(sanitizeGenerationRun(run));
+        grouped.set(run.kind, list);
+    }
+    await Promise.all(
+        Object.entries(byKind).map(async ([kind, store]) => {
+            await store.clear();
+            await Promise.all((grouped.get(kind as GenerationRun["kind"]) || []).map((run) => store.setItem(run.id, run)));
+        }),
+    );
+}
+
+function sanitizeGenerationRun<T extends GenerationRun>(run: T): T {
+    return sanitizeStoredMediaUrls(structuredClone(run)) as T;
+}
+
+function sanitizeStoredMediaUrls(value: unknown, parent?: Record<string, unknown>): unknown {
+    if (Array.isArray(value)) return value.map((item) => sanitizeStoredMediaUrls(item, parent));
+    if (!value || typeof value !== "object") return value;
+    const record = value as Record<string, unknown>;
+    const storageBacked = typeof record.storageKey === "string" && record.storageKey.length > 0;
+    return Object.fromEntries(Object.entries(record).map(([key, child]) => {
+        if (storageBacked && (key === "dataUrl" || key === "url")) return [key, ""];
+        return [key, sanitizeStoredMediaUrls(child, record)];
+    }));
 }
 
 function mergeCanvasData(local: CanvasDomainData, remote: CanvasDomainData): CanvasDomainData {
