@@ -157,13 +157,13 @@ export function findRetrySourceNode(nodeId: string, nodes: CanvasNodeData[], con
 }
 
 export function sourceNodeReferenceImages(node: CanvasNodeData | null) {
-    if (!node || node.type !== CanvasNodeType.Image || !node.metadata?.content) return [];
+    if (!node || node.type !== CanvasNodeType.Image || (!node.metadata?.content && !node.metadata?.storageKey)) return [];
     return [
         {
             id: node.id,
             name: `${node.title || node.id}.png`,
             type: node.metadata.mimeType || "image/png",
-            dataUrl: node.metadata.content,
+            dataUrl: node.metadata.content || "",
             storageKey: node.metadata.storageKey,
         },
     ];

@@ -171,7 +171,14 @@ export function buildNodeResponseMessages(context: NodeGenerationContext): AiTex
 
 export async function hydrateNodeGenerationContext(context: NodeGenerationContext) {
     const { imageToDataUrl } = await import("@/services/image-storage");
-    return { ...context, referenceImages: await Promise.all(context.referenceImages.map(async (image) => ({ ...image, dataUrl: await imageToDataUrl(image) }))) };
+    const referenceImages = await Promise.all(
+        context.referenceImages.map(async (image) => {
+            const dataUrl = await imageToDataUrl(image.storageKey ? { ...image, dataUrl: "" } : image);
+            if (!dataUrl?.startsWith("data:image/")) throw new Error(i18n.t("common.imageReadFailed"));
+            return { ...image, dataUrl };
+        }),
+    );
+    return { ...context, referenceImages };
 }
 
 function readNodeTextInput(node: CanvasNodeData) {
@@ -191,23 +198,23 @@ function generationLabel(type: NodeGenerationResourceInput["type"], index: numbe
 }
 
 function readReferenceImage(node: CanvasNodeData): ReferenceImage | null {
-    if (node.type !== CanvasNodeType.Image || !node.metadata?.content) return null;
+    if (node.type !== CanvasNodeType.Image || (!node.metadata?.content && !node.metadata?.storageKey)) return null;
     return {
         id: node.id,
         name: `${node.title || node.id}.png`,
         type: node.metadata.mimeType || "image/png",
-        dataUrl: node.metadata.content,
+        dataUrl: node.metadata.content || "",
         storageKey: node.metadata.storageKey,
     };
 }
 
 function readReferenceVideo(node: CanvasNodeData): ReferenceVideo | null {
-    if (node.type !== CanvasNodeType.Video || !node.metadata?.content) return null;
+    if (node.type !== CanvasNodeType.Video || (!node.metadata?.content && !node.metadata?.storageKey)) return null;
     return {
         id: node.id,
         name: `${node.title || node.id}.mp4`,
         type: node.metadata.mimeType || "video/mp4",
-        url: node.metadata.content,
+        url: node.metadata.content || "",
         storageKey: node.metadata.storageKey,
         bytes: node.metadata.bytes,
         width: node.metadata.naturalWidth,
@@ -217,12 +224,12 @@ function readReferenceVideo(node: CanvasNodeData): ReferenceVideo | null {
 }
 
 function readReferenceAudio(node: CanvasNodeData): ReferenceAudio | null {
-    if (node.type !== CanvasNodeType.Audio || !node.metadata?.content) return null;
+    if (node.type !== CanvasNodeType.Audio || (!node.metadata?.content && !node.metadata?.storageKey)) return null;
     return {
         id: node.id,
         name: `${node.title || node.id}.mp3`,
         type: node.metadata.mimeType || "audio/mpeg",
-        url: node.metadata.content,
+        url: node.metadata.content || "",
         storageKey: node.metadata.storageKey,
         durationMs: node.metadata.durationMs,
     };

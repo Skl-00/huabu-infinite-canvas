@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 
 import { requestImageQuestion } from "@/services/api/image";
-import { getImageBlob, resolveImageUrl, uploadImage } from "@/services/image-storage";
+import { getImageBlob, imageToDataUrl, uploadImage } from "@/services/image-storage";
 import { createTextRun, ownedTextRuns, textRunLockName, updateTextRun, useTextRunStore, initializeTextRuns } from "@/stores/use-text-run-store";
 import { modelMatchesCapability, modelOptionLabel, resolveModelChannel, resolveModelRequestConfig, resolveModelScript, useConfigStore, type AiConfig } from "@/stores/use-config-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
@@ -40,7 +40,7 @@ async function freezeReferences(references: ReferenceImage[]) {
     return Promise.all(references.map(async (item) => {
         if (item.storageKey) {
             if (!(await getImageBlob(item.storageKey))) throw new Error(`参考图「${item.name}」已丢失，请重新添加`);
-            return { ...item, dataUrl: await resolveImageUrl(item.storageKey) };
+            return { ...item, dataUrl: await imageToDataUrl({ ...item, dataUrl: "" }) };
         }
         const stored = await uploadImage(item.dataUrl);
         if (!stored.storageKey) throw new Error(`参考图「${item.name}」无法保存到本地，未提交生成`);

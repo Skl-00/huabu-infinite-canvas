@@ -434,6 +434,133 @@ test("canvas text generation stores a durable streamed run and rehydrates the re
     expect(posts).toBe(1);
 });
 
+test("connected storage-only image reference reaches the real text request body", async ({ page }) => {
+    await enterCanvas(page);
+    let requestBody: any = null;
+    await page.route("https://reference-text-provider.invalid/**", async (route) => {
+        requestBody = route.request().postDataJSON();
+        await route.fulfill({
+            status: 200,
+            contentType: "text/event-stream",
+            body: ['data: {"type":"response.output_text.delta","delta":"Reference received"}', "", "data: [DONE]", ""].join("\n"),
+        });
+    });
+
+    const result = await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const { useCanvasStore } = await import("/src/stores/canvas/use-canvas-store.ts");
+        const { setImageBlob } = await import("/src/services/image-storage.ts");
+        const { buildNodeGenerationContext, hydrateNodeGenerationContext } = await import("/src/components/canvas/canvas-node-generation.ts");
+        const { startTextRun } = await import("/src/services/text-runner.ts");
+        const currentConfig = useConfigStore.getState().config;
+        const config = {
+            ...currentConfig,
+            proxyEnabled: false,
+            model: "reference::reference-text",
+            textModel: "reference::reference-text",
+            channels: [{
+                id: "reference",
+                name: "Reference QA",
+                baseUrl: "https://reference-text-provider.invalid/v1",
+                apiKey: "reference-test-key",
+                apiFormat: "openai" as const,
+                models: [{ name: "reference-text", capability: "text" as const }],
+            }],
+        };
+        useConfigStore.setState({ config });
+        const project = useCanvasStore.getState().projects[0];
+        const referenceId = "storage-only-reference";
+        const targetId = "reference-target";
+        await setImageBlob("image:qa-reference", new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }));
+        const nodes = [
+            { id: referenceId, type: "image", title: "持久化参考图", position: { x: 0, y: 0 }, width: 240, height: 240, metadata: { content: "", storageKey: "image:qa-reference", mimeType: "image/png" } },
+            { id: targetId, type: "text", title: "执行目标", position: { x: 320, y: 0 }, width: 240, height: 180, metadata: { content: "", prompt: "读取这张参考图并描述它" } },
+        ];
+        const connections = [{ id: "reference-edge", fromNodeId: referenceId, toNodeId: targetId }];
+        useCanvasStore.getState().updateProject(project.id, { nodes, connections });
+        const context = await hydrateNodeGenerationContext(buildNodeGenerationContext(targetId, nodes as any, connections, "读取这张参考图并描述它"));
+        const run = await startTextRun({ prompt: context.prompt, config, references: context.referenceImages, canvas: { projectId: project.id, sceneId: project.id, targetNodeId: targetId, originNodeId: targetId } });
+        return { imageCount: context.imageCount, dataUrl: context.referenceImages[0]?.dataUrl, status: run.status };
+    });
+
+    expect(result.imageCount).toBe(1);
+    expect(result.dataUrl).toMatch(/^data:image\/png;base64,/);
+    expect(result.status).toBe("succeeded");
+    await expect.poll(() => requestBody).toBeTruthy();
+    const content = requestBody.input[0].content;
+    expect(content).toEqual(expect.arrayContaining([
+        { type: "input_text", text: "读取这张参考图并描述它" },
+        expect.objectContaining({ type: "input_image", image_url: expect.stringMatching(/^data:image\/png;base64,/) }),
+    ]));
+});
+
+test("disconnecting a reference removes it from the compiled execution context", async ({ page }) => {
+    await enterCanvas(page);
+    const result = await page.evaluate(async () => {
+        const { buildNodeGenerationContext } = await import("/src/components/canvas/canvas-node-generation.ts");
+        const nodes = [
+            { id: "reference", type: "image", title: "参考", position: { x: 0, y: 0 }, width: 200, height: 200, metadata: { storageKey: "image:missing-but-not-read", content: "" } },
+            { id: "target", type: "text", title: "目标", position: { x: 240, y: 0 }, width: 200, height: 160, metadata: { prompt: "执行" } },
+        ];
+        const connected = buildNodeGenerationContext("target", nodes as any, [{ id: "edge", fromNodeId: "reference", toNodeId: "target" }], "执行");
+        const disconnected = buildNodeGenerationContext("target", nodes as any, [], "执行");
+        return { connected: connected.imageCount, disconnected: disconnected.imageCount };
+    });
+    expect(result.connected).toBe(1);
+    expect(result.disconnected).toBe(0);
+});
+
+test("connected storage-only image reference reaches the real image edit multipart body", async ({ page }) => {
+    await enterCanvas(page);
+    const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+    let requestBody: Buffer | null = null;
+    await page.route("https://reference-image-provider.invalid/**", async (route) => {
+        requestBody = route.request().postDataBuffer();
+        await route.fulfill({ contentType: "application/json", json: { data: [{ b64_json: pngBase64 }] } });
+    });
+
+    const result = await page.evaluate(async (png) => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const { useCanvasStore } = await import("/src/stores/canvas/use-canvas-store.ts");
+        const { setImageBlob } = await import("/src/services/image-storage.ts");
+        const { buildNodeGenerationContext, hydrateNodeGenerationContext } = await import("/src/components/canvas/canvas-node-generation.ts");
+        const { requestEdit } = await import("/src/services/api/image.ts");
+        const currentConfig = useConfigStore.getState().config;
+        const config = {
+            ...currentConfig,
+            proxyEnabled: false,
+            model: "reference::reference-image",
+            imageModel: "reference::reference-image",
+            channels: [{
+                id: "reference",
+                name: "Reference Image QA",
+                baseUrl: "https://reference-image-provider.invalid/v1",
+                apiKey: "reference-image-test-key",
+                apiFormat: "openai" as const,
+                models: [{ name: "reference-image", capability: "image" as const }],
+            }],
+        };
+        useConfigStore.setState({ config });
+        const project = useCanvasStore.getState().projects[0];
+        const nodes = [
+            { id: "reference-image", type: "image", title: "参考图", position: { x: 0, y: 0 }, width: 200, height: 200, metadata: { content: "", storageKey: "image:qa-edit-reference", mimeType: "image/png" } },
+            { id: "image-target", type: "text", title: "图片目标", position: { x: 260, y: 0 }, width: 200, height: 160, metadata: { prompt: "基于参考图生成新图" } },
+        ];
+        const connections = [{ id: "image-edge", fromNodeId: "reference-image", toNodeId: "image-target" }];
+        await setImageBlob("image:qa-edit-reference", new Blob([Uint8Array.from(atob(png), (value) => value.charCodeAt(0))], { type: "image/png" }));
+        useCanvasStore.getState().updateProject(project.id, { nodes, connections });
+        const context = await hydrateNodeGenerationContext(buildNodeGenerationContext("image-target", nodes as any, connections, "基于参考图生成新图"));
+        const images = await requestEdit({ ...config, count: "1" }, context.prompt, context.referenceImages);
+        return { imageCount: context.imageCount, resultCount: images.length };
+    }, pngBase64);
+
+    expect(result.imageCount).toBe(1);
+    expect(result.resultCount).toBe(1);
+    await expect.poll(() => requestBody).toBeTruthy();
+    expect(requestBody!.includes(Buffer.from(pngBase64, "base64"))).toBe(true);
+    expect(requestBody!.toString()).toContain('name="image"');
+});
+
 test("text task center retries a confirmed failure as a child run", async ({ page }) => {
     await enterCanvas(page);
     await page.evaluate(async () => {
