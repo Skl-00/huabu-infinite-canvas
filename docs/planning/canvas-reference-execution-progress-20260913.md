@@ -22,5 +22,10 @@
 
 ## 待完成
 
-- 完成本轮提交并通过 SSH 推送到 `Skl-00/huabu-infinite-canvas`。
 - Config/Group、视频参考适配器仍需继续做可见 UI 和真实 Provider 级专项验收；本轮未把这些未验证项宣称为完成。
+
+## 本轮交付
+
+- 已提交 `9117b43 fix: connect canvas references to generation requests`。
+- 已通过 SSH 推送到 `Skl-00/huabu-infinite-canvas` 的 `main`。
+- 用户已有的规划截图改动未纳入本轮提交，仍保留在工作树。
