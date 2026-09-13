@@ -1,4 +1,4 @@
-import { ArrowRight, FileText, ImagePlus, Images, Maximize2, Sparkles, Video } from "lucide-react";
+import { ArrowRight, FileText, ImagePlus, Images, ListChecks, Maximize2, Sparkles, Video } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { App, Button, Empty } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +8,10 @@ import { fetchPrompts, type Prompt } from "@/services/api/prompts";
 import i18n from "@/i18n";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAssetStore } from "@/stores/use-asset-store";
+import { useImageRunStore } from "@/stores/use-image-run-store";
+import { imageRunStatusLabels } from "@/types/image-run";
+import { useVideoRunStore } from "@/stores/use-video-run-store";
+import { videoRunStatusLabels } from "@/types/video-run";
 
 export default function IndexPage() {
     const { message } = App.useApp();
@@ -17,6 +21,9 @@ export default function IndexPage() {
     const projects = useCanvasStore((state) => state.projects);
     const createProject = useCanvasStore((state) => state.createProject);
     const assets = useAssetStore((state) => state.assets);
+    const imageRuns = useImageRunStore((state) => state.runs);
+    const videoRuns = useVideoRunStore((state) => state.runs);
+    const recentRuns = [...imageRuns, ...videoRuns].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
     const recentProjects = projects.filter((project) => !project.workspaceId || project.workspaceId === project.id).slice(0, 4);
 
     useEffect(() => {
@@ -44,6 +51,20 @@ export default function IndexPage() {
                         <QuickCreate icon={<ImagePlus />} title={t("home.createImage")} description={t("home.createImageDescription")} onClick={() => navigate("/image")} />
                         <QuickCreate icon={<Video />} title={t("home.createVideo")} description={t("home.createVideoDescription")} onClick={() => navigate("/video")} />
                     </div>
+                </section>
+
+                <section className="workspace-section">
+                    <div className="workspace-section-heading">
+                        <h2 className="flex items-center gap-2"><ListChecks size={17} />最近生成任务</h2>
+                        <Button type="link" onClick={() => navigate("/tasks")} icon={<ArrowRight size={15} />}>全部任务</Button>
+                    </div>
+                    {recentRuns.length ? recentRuns.map((run) => (
+                        <button key={run.id} type="button" onClick={() => navigate(`/tasks?kind=${run.kind}&run=${run.id}`)} className="flex w-full min-w-0 items-center gap-3 border-b border-border py-3 text-left hover:bg-black/5 dark:hover:bg-white/5">
+                            <span className="min-w-0 flex-1 truncate text-sm">{run.request.prompt}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground">{run.kind === "video" ? `视频 · ${videoRunStatusLabels[run.status]}` : `图片 · ${imageRunStatusLabels[run.status]} · ${run.slots.filter((slot) => slot.status === "success").length}/${run.slots.length}`}</span>
+                            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                        </button>
+                    )) : <p className="text-sm text-muted-foreground">暂无生成任务</p>}
                 </section>
 
                 <section className="workspace-community-entry">

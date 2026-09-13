@@ -16,6 +16,8 @@ export type UploadedImage = {
 const store = localforage.createInstance({ name: "infinite-canvas", storeName: "image_files" });
 const imageLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
 const videoLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
+const imageRunStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_runs" });
+const videoRunStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_runs" });
 const objectUrls = new Map<string, string>();
 const IMAGE_DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
 const IMAGE_REMOTE_LOAD_TIMEOUT_MS = 10 * 60_000;
@@ -171,7 +173,15 @@ export async function deleteStoredImages(keys: Iterable<string>) {
 
 export async function cleanupUnusedImages(usedData: unknown) {
     const usedKeys = collectImageStorageKeys(usedData);
+    const { useVideoRunStore } = await import("@/stores/use-video-run-store");
+    collectImageStorageKeys(useVideoRunStore.getState().runs, usedKeys);
     await Promise.all([
+        videoRunStore.iterate((value) => {
+            collectImageStorageKeys(value, usedKeys);
+        }),
+        imageRunStore.iterate((value) => {
+            collectImageStorageKeys(value, usedKeys);
+        }),
         imageLogStore.iterate((value) => {
             collectImageStorageKeys(value, usedKeys);
         }),

@@ -27,6 +27,9 @@ export function cloneSceneGraph(project: CanvasProject) {
             }
             delete metadata.videoTaskId;
             delete metadata.videoTaskProvider;
+            delete metadata.videoTask;
+            delete metadata.generationRunId;
+            delete metadata.generationRunKind;
             metadata.groupId = metadata.groupId ? ids.get(metadata.groupId) : undefined;
             metadata.images?.forEach((image) => {
                 const id = nanoid();
@@ -38,6 +41,7 @@ export function cloneSceneGraph(project: CanvasProject) {
                 const id = nanoid();
                 if (metadata.primaryTextId === text.id) metadata.primaryTextId = id;
                 text.id = id;
+                delete text.generationRunId;
                 if (text.status === "loading") text.status = "idle";
             });
         }

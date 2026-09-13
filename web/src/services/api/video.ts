@@ -8,6 +8,9 @@ import { getMediaBlob, resolveMediaUrl, uploadMediaFile, type UploadedFile } fro
 import { imageToDataUrl } from "@/services/image-storage";
 import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig } from "@/stores/use-config-store";
 import { runModelPlugin } from "./model-plugin";
+import { createAgnesVideo, pollAgnesVideo } from "./agnes";
+export { AGNES_VIDEO_FLASH_LIMITS } from "./agnes";
+import { captureModelBinding, resolveBoundModelConfig, redactProviderError, type ModelBinding } from "./model-binding";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -19,7 +22,7 @@ type VideoMediaOptions = RequestOptions & { videos?: ReferenceVideo[]; audios?: 
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
-export type VideoGenerationTask = { id: string; provider: "openai" | "gemini" | "plugin"; model: string };
+export type VideoGenerationTask = { id: string; provider: "openai" | "gemini" | "plugin" | "agnes"; model: string; videoId?: string; binding?: ModelBinding; inlineResult?: VideoGenerationResult };
 type GeminiInlineData = { bytesBase64Encoded: string; mimeType: string };
 type GeminiVideoOperation = {
     name?: string;
@@ -28,9 +31,6 @@ type GeminiVideoOperation = {
     response?: { generateVideoResponse?: { generatedSamples?: Array<{ video?: { uri?: string } }> } };
 };
 export type VideoGenerationTaskState = { status: "pending" } | { status: "completed"; result: VideoGenerationResult } | { status: "failed"; error: string };
-
-/** Results for scripted (plugin) video models, which run their own create+poll in one shot at task creation. */
-const pluginVideoResults = new Map<string, VideoGenerationResult>();
 
 function aiApiUrl(config: AiConfig, path: string) {
     return buildApiUrl(config.baseUrl, path);
@@ -70,24 +70,41 @@ function videoTaskFailed(message: string) {
 }
 
 export async function createVideoGenerationTask(config: AiConfig, prompt: string, references: ReferenceImage[] = [], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
-    const selectedModel = (config.model || config.videoModel).trim();
-    const requestConfig = resolveModelRequestConfig(config, selectedModel);
-    const script = resolveModelScript(config, selectedModel);
-    if (script) return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references, options);
-    assertVideoConfig(requestConfig, requestConfig.model);
-    if (requestConfig.apiFormat === "gemini") return createGeminiVideoTask(requestConfig, selectedModel, prompt, references, options);
-    return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options);
+    try {
+        const selectedModel = (config.model || config.videoModel).trim();
+        const requestConfig = resolveModelRequestConfig(config, selectedModel);
+        const script = resolveModelScript(config, selectedModel);
+        if (script) return await createPluginVideoTask(requestConfig, selectedModel, script, prompt, references, options);
+        const binding = await captureModelBinding(config, selectedModel);
+        assertVideoConfig(requestConfig, requestConfig.model);
+        if (requestConfig.apiFormat === "agnes") return { ...await createAgnesVideo(requestConfig, prompt, references, options), model: selectedModel, provider: "agnes", binding };
+        const task = requestConfig.apiFormat === "gemini"
+            ? await createGeminiVideoTask(requestConfig, selectedModel, prompt, references, options)
+            : await createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options);
+        return { ...task, binding };
+    } catch (error) {
+        throw new Error(redactProviderError(new Error(readAxiosError(error, apiText("videoTaskCreateFailed"))), config));
+    }
 }
 
 export async function pollVideoGenerationTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
     if (task.provider === "plugin") {
-        const result = pluginVideoResults.get(task.id);
-        return result ? { status: "completed", result } : { status: "failed", error: apiText("pluginVideoExpired") };
+        return task.inlineResult ? { status: "completed", result: task.inlineResult } : { status: "failed", error: apiText("pluginVideoExpired") };
     }
-    const requestConfig = resolveModelRequestConfig(config, task.model);
+    const requestConfig = await resolveBoundModelConfig(config, task.model, task.binding);
     assertVideoConfig(requestConfig, requestConfig.model);
-    if (task.provider === "gemini") return pollGeminiVideoTask(requestConfig, task, options);
-    return pollOpenAIVideoTask(requestConfig, task, options);
+    try {
+        if (task.provider !== requestConfig.apiFormat) throw new Error("视频任务协议与原渠道不一致，未发送查询");
+        if (task.provider === "agnes") {
+            if (!task.videoId) throw new Error("视频任务缺少 video_id，无法查询");
+            const state = await pollAgnesVideo(requestConfig, task.videoId, options);
+            return state.status === "completed" ? { status: "completed", result: await videoResultFromUrl(state.url, options) } : state.status === "failed" ? { ...state, error: redactProviderError(new Error(state.error), config) } : state;
+        }
+        const state = task.provider === "gemini" ? await pollGeminiVideoTask(requestConfig, task, options) : await pollOpenAIVideoTask(requestConfig, task, options);
+        return state.status === "failed" ? { ...state, error: redactProviderError(new Error(state.error), config) } : state;
+    } catch (error) {
+        throw new Error(redactProviderError(new Error(readAxiosError(error, apiText("videoTaskQueryFailed"))), config));
+    }
 }
 
 async function createPluginVideoTask(config: AiConfig, model: string, script: string, prompt: string, references: ReferenceImage[], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
@@ -117,9 +134,7 @@ async function createPluginVideoTask(config: AiConfig, model: string, script: st
             signal: options?.signal,
         }),
     );
-    const id = nanoid();
-    pluginVideoResults.set(id, result);
-    return { id, provider: "plugin", model };
+    return { id: `plugin:${nanoid()}`, provider: "plugin", model, inlineResult: result };
 }
 
 function videoPluginResult(result: unknown): VideoGenerationResult {
@@ -194,13 +209,14 @@ async function pollOpenAIVideoTask(config: AiConfig, task: VideoGenerationTask, 
     }
 }
 
-async function videoResultFromUrl(url: string, options?: RequestOptions): Promise<VideoGenerationResult> {
+async function videoResultFromUrl(url: string, options?: RequestOptions, allowRemoteFallback = true): Promise<VideoGenerationResult> {
     try {
         const response = await axios.get<Blob>(withLocalProxy(url), { responseType: "blob", signal: options?.signal });
         await assertVideoBlob(response.data);
         return { blob: response.data };
     } catch (error) {
         if (axios.isCancel(error) || options?.signal?.aborted) throw error;
+        if (!allowRemoteFallback) throw new Error("视频下载未完成，请继续查询原任务；含凭据的下载地址不会保存");
         return { url, mimeType: "video/mp4" };
     }
 }
@@ -245,7 +261,7 @@ async function pollGeminiVideoTask(config: AiConfig, task: VideoGenerationTask, 
         const uri = state.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
         if (!uri) return { status: "failed", error: apiText("noPlayableVideo") };
         const url = uri.includes("key=") ? uri : `${uri}${uri.includes("?") ? "&" : "?"}key=${config.apiKey}`;
-        return { status: "completed", result: await videoResultFromUrl(url, options) };
+        return { status: "completed", result: await videoResultFromUrl(url, options, false) };
     } catch (error) {
         throw new Error(readAxiosError(error, apiText("videoTaskQueryFailed")));
     }
@@ -394,6 +410,8 @@ function statusMessage(status: number | undefined, fallback: string) {
 }
 
 async function assertVideoBlob(blob: Blob) {
+    if (!blob.size) throw new Error("视频文件为空");
+    if (blob.type.includes("html") || blob.type.startsWith("text/")) throw new Error("视频地址返回了网页或文本，未保存为视频");
     if (!blob.type.includes("json")) return;
     let payload: { code?: number; msg?: string; error?: { message?: string } };
     try {

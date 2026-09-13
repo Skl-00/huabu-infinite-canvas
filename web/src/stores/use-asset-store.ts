@@ -36,6 +36,7 @@ type AssetStore = {
 };
 
 const ASSET_STORE_KEY = "infinite-canvas:asset_store";
+let assetWrite: Promise<void> = Promise.resolve();
 
 const assetStorage: PersistStorage<AssetStore> = {
     getItem: async (name) => {
@@ -59,7 +60,12 @@ const assetStorage: PersistStorage<AssetStore> = {
         );
         return parsed;
     },
-    setItem: (name, value) => localForageStorage.setItem(name, JSON.stringify(value)),
+    setItem: (name, value) => {
+        const serialized = JSON.stringify(value);
+        assetWrite = assetWrite.catch(() => undefined).then(async () => { await localForageStorage.setItem(name, serialized); });
+        void assetWrite.catch(() => undefined);
+        return assetWrite;
+    },
     removeItem: (name) => localForageStorage.removeItem(name),
 };
 
@@ -103,3 +109,15 @@ export const useAssetStore = create<AssetStore>()(
         },
     ),
 );
+
+export async function addAssetDurably(asset: Omit<Asset, "id" | "createdAt" | "updatedAt">) {
+    if (!useAssetStore.getState().hydrated) throw new Error("素材库尚未加载完成，请稍后重试");
+    const id = useAssetStore.getState().addAsset(asset);
+    try {
+        await assetWrite;
+        return id;
+    } catch {
+        useAssetStore.setState((state) => ({ assets: state.assets.filter((item) => item.id !== id) }));
+        throw new Error("素材未能保存，生成结果仍保留在任务记录中");
+    }
+}

@@ -3,6 +3,8 @@ import axios from "axios";
 import i18n from "@/i18n";
 import { buildApiUrl, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig, type ModelChannel } from "@/stores/use-config-store";
 import { normalizePluginImages, runModelPlugin } from "./model-plugin";
+import { requestAgnesImages } from "./agnes";
+import { redactProviderError } from "./model-binding";
 import { nanoid } from "nanoid";
 import { dataUrlToFile } from "@/lib/image-utils";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
@@ -251,6 +253,7 @@ function resolveImageSource(item: Record<string, unknown>) {
 }
 
 function parseImagePayload(payload: ImageApiResponse) {
+    if (payload.error) throw new Error(readApiErrorMessage(payload.error) || apiText("requestFailed"));
     if (typeof payload.code === "number" && payload.code !== 0) {
         throw new Error(payload.msg || apiText("requestFailed"));
     }
@@ -724,6 +727,10 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const script = resolveModelScript(config, config.model || config.imageModel);
+    if (!script && requestConfig.apiFormat === "agnes") {
+        try { return await requestAgnesImages(requestConfig, withSystemPrompt(requestConfig, prompt), [], n, options); }
+        catch (error) { throw new Error(redactProviderError(new Error(readAxiosError(error, apiText("requestFailed"))), config)); }
+    }
     if (script) {
         const quality = normalizeQuality(config.quality);
         const requestSize = resolveRequestSize(quality, config.size);
@@ -784,6 +791,10 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const requestPrompt = buildImageReferencePromptText(prompt, references);
     const script = resolveModelScript(config, config.model || config.imageModel);
+    if (!script && requestConfig.apiFormat === "agnes") {
+        try { return await requestAgnesImages(requestConfig, withSystemPrompt(requestConfig, requestPrompt), references, n, options); }
+        catch (error) { throw new Error(redactProviderError(new Error(readAxiosError(error, apiText("requestFailed"))), config)); }
+    }
     if (script) {
         const quality = normalizeQuality(config.quality);
         const requestSize = resolveRequestSize(quality, config.size);
@@ -863,6 +874,9 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
             if (text === apiText("noContent")) onDelta(text);
             return text;
         } catch (error) {
+            if (axios.isCancel(error) || (error instanceof DOMException && error.name === "AbortError")) {
+                throw new DOMException("Aborted", "AbortError");
+            }
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
@@ -880,6 +894,9 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
         if (answer === apiText("noContent")) onDelta(answer);
         return answer;
     } catch (error) {
+        if (axios.isCancel(error) || (error instanceof DOMException && error.name === "AbortError")) {
+            throw new DOMException("Aborted", "AbortError");
+        }
         throw new Error(readAxiosError(error, apiText("requestFailed")));
     }
 }

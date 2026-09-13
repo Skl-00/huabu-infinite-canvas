@@ -194,7 +194,7 @@ export default {
         removeVideo: "Remove reference video",
         removeAudio: "Remove reference audio",
         dropReferences: "Drop to upload reference assets",
-        noImages: "No reference images. Drag in up to 9 files.",
+        noImages: "No reference images",
         noVideos: "No reference videos. Drag in up to 3 files.",
         noAudio: "No reference audio. Drag in up to 3 MP3/WAV files, each under 15 MB.",
         unsupportedFiles: "Unsupported reference assets were ignored. Use images, MP4/MOV video, or MP3/WAV audio.",
@@ -213,6 +213,7 @@ export default {
         resultTitle: "Generated video",
         source: "Video Studio",
         empty: "No video generated yet",
+        agnesReferenceLimit: "Agnes Flash supports up to 5 reference images. Remove extras before generating.",
     },
     canvas: {
         defaultTitle: "HuaBu Canvas {{count}}",
@@ -329,6 +330,7 @@ export default {
         },
     },
     navigation: {
+        tasks: "Tasks",
         canvas: "My Canvases",
         image: "Image Studio",
         video: "Video Studio",
@@ -379,6 +381,7 @@ export default {
         showcaseDescription: "Save reliable prompts, visual references, and generated images so your next creation starts from proven ideas.",
         viewPrompts: "View prompt library",
     },
+    taskStatus: { partialCount: "{{count}} partial", interruptedCount: "{{count}} interrupted" },
     version: {
         viewUpdates: "View release updates",
         title: "Release updates",

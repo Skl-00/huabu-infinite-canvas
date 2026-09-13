@@ -9,7 +9,14 @@ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "
 const objectUrls = new Map<string, string>();
 
 export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
-    const blob = typeof input === "string" ? await (await fetch(withLocalProxy(input))).blob() : input;
+    let blob: Blob;
+    if (typeof input === "string") {
+        const response = await fetch(withLocalProxy(input));
+        if (!response.ok) throw new Error(`媒体下载失败 (${response.status})`);
+        blob = await response.blob();
+    } else blob = input;
+    if (!blob.size) throw new Error("媒体文件为空，未保存");
+    if (prefix === "video" && !blob.type.startsWith("video/") && blob.type !== "application/octet-stream") throw new Error("返回内容不是视频文件，未保存");
     const storageKey = `${prefix}:${nanoid()}`;
     await store.setItem(storageKey, blob);
     const url = URL.createObjectURL(blob);
@@ -53,11 +60,22 @@ export async function deleteStoredMedia(keys: Iterable<string>) {
 
 export async function cleanupUnusedMedia(usedData: unknown) {
     const usedKeys = collectMediaStorageKeys(usedData);
+    const { useVideoRunStore } = await import("@/stores/use-video-run-store");
+    const { useAudioRunStore } = await import("@/stores/use-audio-run-store");
+    const { useTextRunStore } = await import("@/stores/use-text-run-store");
+    collectMediaStorageKeys(useVideoRunStore.getState().runs, usedKeys);
+    collectMediaStorageKeys(useAudioRunStore.getState().runs, usedKeys);
+    collectMediaStorageKeys(useTextRunStore.getState().runs, usedKeys);
+    for (const storeName of ["video_runs", "video_generation_logs", "audio_runs", "text_runs"]) {
+        await localforage.createInstance({ name: "infinite-canvas", storeName }).iterate((value) => {
+            collectMediaStorageKeys(value, usedKeys);
+        });
+    }
     const unused: string[] = [];
     await store.iterate((_value, key) => {
         if (!usedKeys.has(key)) unused.push(key);
     });
-    await Promise.all(unused.map((key) => store.removeItem(key)));
+    await deleteStoredMedia(unused);
 }
 
 export function collectMediaStorageKeys(value: unknown, keys = new Set<string>()) {
@@ -70,7 +88,7 @@ export function collectMediaStorageKeys(value: unknown, keys = new Set<string>()
 function readVideoMeta(url: string) {
     return new Promise<{ width: number; height: number; durationMs?: number }>((resolve) => {
         const video = document.createElement("video");
-        const done = () => resolve({ width: video.videoWidth || 1280, height: video.videoHeight || 720, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : undefined });
+        const done = () => resolve({ width: video.videoWidth, height: video.videoHeight, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : undefined });
         video.onloadedmetadata = done;
         video.onerror = done;
         video.src = url;

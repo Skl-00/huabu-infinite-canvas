@@ -4,18 +4,21 @@ import type { CanvasAgentOp } from "@/lib/canvas/canvas-agent-ops";
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import type { CanvasConnection, CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 import type { CanvasResourceKind } from "@/lib/canvas/canvas-resource-references";
+import type { CanvasRunContext } from "@/types/image-run";
 
 // Resource emitted when a plugin node is consumed as an upstream input.
 export type CanvasNodeResource = { kind: CanvasResourceKind; text?: string; url?: string };
 
 // AI generation capabilities injected by the host, reusing its model and credential configuration.
-export type GenerateOptions = { signal?: AbortSignal; references?: string[]; model?: string };
+export type GenerateOptions = { signal?: AbortSignal; references?: string[]; model?: string; runContext?: CanvasRunContext; allowRepeat?: boolean };
 export type GenerateImageOptions = GenerateOptions & { count?: number; size?: string };
 export type GenerateImageResult = { images: string[] };
 export type GenerateVideoOptions = GenerateOptions & { size?: string; seconds?: string };
 export type GenerateVideoResult = { url: string; mimeType: string; width?: number; height?: number; durationMs?: number };
-export type GenerateTextOptions = { signal?: AbortSignal; model?: string; system?: string; onDelta?: (text: string) => void };
+export type GenerateTextOptions = GenerateOptions & { system?: string; onDelta?: (text: string) => void };
 export type GenerateTextResult = { text: string };
+export type GenerateAudioOptions = GenerateOptions & { voice?: string; format?: string; speed?: string; instructions?: string };
+export type GenerateAudioResult = { url: string; mimeType: string; durationMs?: number };
 export type PluginModelCapability = "image" | "video" | "text" | "audio";
 export type ModelOption = { value: string; label: string };
 
@@ -23,6 +26,7 @@ export type CanvasPluginAi = {
     generateImage: (prompt: string, options?: GenerateImageOptions) => Promise<GenerateImageResult>;
     generateVideo: (prompt: string, options?: GenerateVideoOptions) => Promise<GenerateVideoResult>;
     generateText: (prompt: string, options?: GenerateTextOptions) => Promise<GenerateTextResult>;
+    generateAudio: (prompt: string, options?: GenerateAudioOptions) => Promise<GenerateAudioResult>;
     listModels: (capability?: PluginModelCapability) => ModelOption[];
     defaultModel: (capability: PluginModelCapability) => string;
 };
@@ -85,6 +89,7 @@ export type CanvasPluginHost = {
     applyOps: (ops: CanvasAgentOp[]) => void;
     // AI generation using the current canvas model and credential configuration.
     ai: CanvasPluginAi;
+    aiForNode: (nodeId: string) => CanvasPluginAi;
     // Opens or closes the custom panel below a specified node.
     openPanel: (nodeId: string) => void;
     closePanel: () => void;

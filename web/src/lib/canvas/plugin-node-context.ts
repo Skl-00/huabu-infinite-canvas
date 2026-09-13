@@ -22,7 +22,7 @@ export function buildNodeContext(host: CanvasPluginHost, node: CanvasNodeData, t
         applyOps: (ops) => host.applyOps(ops),
         emit: (event, payload) => emitCanvasEvent(event, payload),
         on: (event, handler) => onCanvasEvent(event, handler),
-        ai: host.ai,
+        ai: host.aiForNode(node.id),
         openPanel: () => host.openPanel(node.id),
         closePanel: () => host.closePanel(),
         storage,

@@ -42,6 +42,7 @@ export type CanvasNodeText = {
     status: CanvasNodeStatus;
     errorDetails?: string;
     content: string;
+    generationRunId?: string;
 };
 
 export type CanvasNodeMetadata = {
@@ -82,7 +83,10 @@ export type CanvasNodeMetadata = {
     bytes?: number;
     durationMs?: number;
     videoTaskId?: string;
-    videoTaskProvider?: "openai" | "gemini";
+    videoTaskProvider?: "openai" | "gemini" | "agnes";
+    videoTask?: import("@/services/api/video").VideoGenerationTask;
+    generationRunId?: string;
+    generationRunKind?: "image" | "video" | "audio" | "text";
     groupId?: string;
     interactive?: boolean; // Plugin node interaction/move state; see CanvasNodeDefinition.interactionToggle.
 };

@@ -194,7 +194,7 @@ export default {
         removeVideo: "移除参考视频",
         removeAudio: "移除参考音频",
         dropReferences: "松开即可上传参考资产",
-        noImages: "暂无参考图，可拖入文件，最多 9 张",
+        noImages: "暂无参考图",
         noVideos: "暂无参考视频，可拖入文件，最多 3 个",
         noAudio: "暂无参考音频，可拖入文件，最多 3 个，mp3/wav，单个 15MB 内",
         unsupportedFiles: "已忽略不支持的参考资产，请使用图片、mp4/mov 视频或 mp3/wav 音频",
@@ -213,6 +213,7 @@ export default {
         resultTitle: "生成视频",
         source: "视频创作台",
         empty: "还没有生成视频",
+        agnesReferenceLimit: "Agnes Flash 参考图最多 5 张，请移除多余素材后再生成",
     },
     canvas: {
         defaultTitle: "HuaBu 画布 {{count}}",
@@ -329,6 +330,7 @@ export default {
         },
     },
     navigation: {
+        tasks: "任务",
         canvas: "我的画布",
         image: "生图工作台",
         video: "视频创作台",
@@ -379,6 +381,7 @@ export default {
         showcaseDescription: "收藏稳定出图的提示词、参考风格和结果图片，让下一次创作从已有经验开始。",
         viewPrompts: "查看提示词库",
     },
+    taskStatus: { partialCount: "部分成功 {{count}}", interruptedCount: "中断待核对 {{count}}" },
     version: {
         viewUpdates: "查看版本更新",
         title: "版本更新",

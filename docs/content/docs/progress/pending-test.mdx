@@ -7,6 +7,46 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+## Durable Video Tasks
+
+- New video studio jobs write only to `video_runs`. Task type tabs, studio history, home activity and Agent status share those records. Old video history remains readable but is not automatically queried or resubmitted.
+- A per-task Web Lock gives one tab execution ownership. Navigation preserves execution; reload recovers known remote identities with GET only. Interrupted submissions without remote identity require verification with the original service.
+- Both the initial record and running transition must persist before POST. Returned remote identity, staged result and final media must survive subsequent write failures in memory; keep the page open until resaving succeeds. No new generation is triggered by resaving.
+- Explicit remote failure can create one retry child with the frozen original recipe and binding. Concurrent retry actions reuse that child. Query interruption only offers resume; key rotation is allowed while channel, endpoint, protocol or script changes block requests.
+- Verify task search/filter, mobile list/detail navigation, expandable metadata, result playback/download, remote localization, durable asset saves and media retention after asset/history deletion.
+- Local records are not cloud sync or a backup. Script results not yet staged cannot resume after refresh. Polling remains 120 attempts at 2500 ms; no new concurrency cap or automatic retry policy was introduced.
+
+## Durable Canvas Generation
+
+- Canvas image, video, audio and text generation now reuse the durable studio runners. Plugin image/video/audio/text calls use the same repositories and include only project/scene/node context plus a redacted plugin identity; the canvas keeps layout, connections and undo history as its own state.
+- Open a scene after navigation or reload to verify a completed task rehydrates an existing target node. Deleting the node keeps the task in the task center and does not create a replacement node. Copying a scene keeps media but removes the generation-run identity.
+- Verify canvas image batch slots, partial failures, result metadata, video remote task identity, text streaming, audio results and task-center recovery. Plugin calls must save the task before the Provider request, preserve partial text, and never persist API keys, script bodies or credential-bearing URLs.
+- In development Strict Mode and after refresh, one plugin node/request may create or reuse only one active or completed task. Failed or interrupted runs must not auto-submit again; an explicit `allowRepeat` call is required for an intentional new attempt. A completed task must not write back to a deleted, copied or newly re-targeted node.
+- The task center should show whether each task is standalone, canvas-bound or plugin-bound; plugin tasks should show the plugin ID and node type and link back to the source canvas. Image batch slots should submit sequentially, continue after an individual failure, and never overlap Provider requests.
+
+## Agnes And Video Recovery
+
+- The Agnes Flash preset selects the three requested text, image and video models without changing other channels or deleting custom models/scripts. Credentials remain browser-local; an isolated test profile is not the user's normal browser configuration.
+- Text uses Responses. Image generation and editing share the Agnes JSON endpoint. Videos retain task ID, video ID and a credential-free original-channel binding; queries use video_id/model_name. Live pending states and top-level result URLs are supported.
+- Persist before submitting. An interrupted submission without an ID requires verification with the original service. Interrupted queries resume the existing task without another POST; explicit Provider failures remain distinct. Changed channel identity blocks recovery while credential rotation remains possible.
+- Reference images can use public URLs. Local Blob/Data URI video inputs are rejected rather than silently uploaded. When media CORS blocks offline saving, use the existing local proxy and Save Locally without regeneration.
+- Verify reload previews, asset reuse, visible storage errors and retained shared media after deleting history. Copying a scene must not copy its video execution identity.
+- Output dimensions and duration must reflect the downloaded media, not request defaults or generation elapsed time. Unavailable metadata is marked unknown.
+- Verify short/tall mobile views, both themes, the video history drawer, channel editor and long model names.
+- All three requested models have been exercised with small serial live calls. Video studio repository/coordination is covered above; canvas backup/export and complete site-wide parity remain pending.
+
+## HuaBu Image Tasks
+
+- Image Studio and Agent image generation must save the request snapshot before calling the Provider. The home page, task list and studio should share the same persistent results across navigation.
+- Partial results keep both successful images and errors. Retrying submits only unfinished slots with the original prompt, settings and references. Changed channels, endpoints or scripts must be rejected; credential rotation remains possible.
+- Interrupted requests must never be resubmitted automatically after reload. Already-saved slot results restore the correct terminal state. A live request in another tab must not be marked interrupted.
+- Storage failures must be visible: pre-submit failure blocks API calls, task records can be saved again without generation, and failed asset writes keep the source image. Remote-only images must be identified as not saved offline.
+- Verify search, status filters, task details, retry ancestry, downloads, asset reuse, explicit parameter reuse, legacy history and the mobile history drawer.
+- Check light and dark layouts at 1440px and 390px, including short mobile viewports, long errors, uncropped images and the mobile navigation footer.
+- Durable image tasks cover Image Studio, not the full canvas executor. Original-channel video recovery is covered above. Records are browser-local and are not yet included in canvas archives or cloud sync. Mocked regression and live Provider evidence are recorded separately.
+
+## Upstream Follow-Ups
+
 - Local proxy: Settings should show a dedicated Local proxy tab between Providers and Preferences, with a switch that is off by default. Turning it on should reveal the `npx @basketikun/canvas-proxy@latest` command (with `--port` appended when a non-default port is configured), a copy action, and an address field defaulting to `http://127.0.0.1:23210` that normalizes a missing scheme and trailing slashes on blur. Test connection should succeed only while the command is running. With the proxy on, fetching model lists, generating images, videos, text (including streamed output), and audio, running custom call scripts, polling video tasks, downloading generated images and videos, and WebDAV connection tests plus sync should all route through the proxy and keep working; turning it off should restore direct requests. The proxy itself should forward request methods, headers, query strings, and bodies unchanged, stream SSE responses without buffering, and keep `data:` and `blob:` URLs untouched.
 - Image and video size settings: Image settings should split resolution (`1k` / `2k` / `4k` / auto) from aspect ratio (`1:1`, `2:3`, `3:2`, `4:3`, `3:4`, `16:9`, `9:16`, `21:9`, `9:21`, auto) and fill W/H from that pair. Video settings should keep `480p` / `720p` / `1080p` (plus a custom `p` value) and `1:1` / `3:4` / `4:3` / `16:9` / `9:16` / `21:9` / auto, then fill W/H from that pair. Duration should be a 4–30 second slider with the current value on the right; auto ratio should disable W/H.
 - Built-in video requests: without a custom call script, OpenAI-format channels should send `mode`, `first_frame`/`last_frame` or `image[]`, `generate_audio`, `watermark`, and reference videos/audio like the insertable template, and must not use `input_reference[]`. Gemini-format channels should use `predictLongRunning` with `image`/`lastFrame` or `referenceImages`, and must not report that video is unsupported. Refreshing the page should continue polling a Gemini task.

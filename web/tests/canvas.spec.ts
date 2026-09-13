@@ -183,17 +183,314 @@ test("clone semantics keep media and plugin data, remap groups and remove active
         const { cloneSceneGraph } = await import("/src/lib/canvas/canvas-workspaces.ts");
         const nodes = [
             { id: "group", type: "group", title: "G", position: { x: 0, y: 0 }, width: 400, height: 400 },
-            { id: "video", type: "video", title: "V", position: { x: 20, y: 20 }, width: 200, height: 100, metadata: { groupId: "group", status: "loading", videoTaskId: "active-job", storageKey: "video:keep" } },
+            { id: "video", type: "video", title: "V", position: { x: 20, y: 20 }, width: 200, height: 100, metadata: { groupId: "group", status: "loading", videoTaskId: "active-job", generationRunId: "run-keep-out", generationRunKind: "video", storageKey: "video:keep" } },
             { id: "plugin", type: "custom:node", title: "P", position: { x: 220, y: 20 }, width: 200, height: 100, metadata: { customValue: 42 } },
         ];
         return cloneSceneGraph({ nodes, connections: [{ id: "edge", fromNodeId: "video", toNodeId: "plugin" }] } as any);
     });
     expect(result.nodes[1].metadata.groupId).toBe(result.nodes[0].id);
     expect(result.nodes[1].metadata.videoTaskId).toBeUndefined();
+    expect(result.nodes[1].metadata.generationRunId).toBeUndefined();
+    expect(result.nodes[1].metadata.generationRunKind).toBeUndefined();
     expect(result.nodes[1].metadata.storageKey).toBe("video:keep");
     expect(result.nodes[1].metadata.status).toBe("error");
     expect(result.nodes[2].metadata.customValue).toBe(42);
     expect(result.connections[0].fromNodeId).toBe(result.nodes[1].id);
+});
+
+test("canvas image generation writes a durable run and rehydrates the result onto the node", async ({ page }) => {
+    await enterCanvas(page);
+    const png = await page.evaluate(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 32; canvas.height = 32;
+        const context = canvas.getContext("2d")!;
+        context.fillStyle = "#258b94"; context.fillRect(0, 0, 32, 32);
+        return canvas.toDataURL("image/png").split(",")[1];
+    });
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const config = useConfigStore.getState().config;
+        useConfigStore.setState({
+            config: {
+                ...config, proxyEnabled: false, model: "canvas::canvas-image", imageModel: "canvas::canvas-image", count: "1",
+                channels: [{ id: "canvas", name: "Canvas QA", baseUrl: "https://canvas-provider.invalid", apiKey: "canvas-test-key", apiFormat: "openai", models: [{ name: "canvas-image", capability: "image" }] }],
+            },
+        });
+    });
+    await page.route("https://canvas-provider.invalid/**", (route) => route.fulfill({ contentType: "application/json", json: { data: [{ b64_json: png }] } }));
+    await page.getByRole("button", { name: "图片", exact: true }).click();
+    await expect(page.locator(".node-element")).toHaveCount(1);
+    const prompt = page.locator('[contenteditable="true"]').last();
+    await prompt.fill("Canvas durable image");
+    await page.getByRole("button", { name: "生成", exact: true }).click();
+    await expect.poll(async () => (await snapshot(page))[0].nodes.some((node: any) => node.metadata?.generationRunId)).toBe(true);
+    await expect.poll(async () => (await snapshot(page))[0].nodes.some((node: any) => node.metadata?.content)).toBe(true);
+    const state = await page.evaluate(async () => {
+        const { useImageRunStore } = await import("/src/stores/use-image-run-store.ts");
+        return useImageRunStore.getState().runs;
+    });
+    expect(state).toHaveLength(1);
+    expect(state[0].request.canvas).toMatchObject({ targetNodeId: (await snapshot(page))[0].nodes[0].id });
+    expect(JSON.stringify(state)).not.toContain("canvas-test-key");
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect.poll(async () => (await snapshot(page))[0]?.nodes?.some((node: any) => node.metadata?.content) || false).toBe(true);
+});
+
+test("canvas video generation stores the remote task and rehydrates the durable result", async ({ page }) => {
+    await enterCanvas(page);
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const config = useConfigStore.getState().config;
+        useConfigStore.setState({
+            config: {
+                ...config, proxyEnabled: false, model: "canvas::canvas-video", videoModel: "canvas::canvas-video", size: "16:9", vquality: "720", videoSeconds: "5",
+                channels: [{ id: "canvas", name: "Canvas Video QA", baseUrl: "https://canvas-video-provider.invalid", apiKey: "canvas-video-test-key", apiFormat: "openai", models: [{ name: "canvas-video", capability: "video" }] }],
+            },
+        });
+    });
+    let posts = 0;
+    await page.route("https://canvas-video-provider.invalid/**", async (route) => {
+        if (route.request().method() === "POST") {
+            posts++;
+            await route.fulfill({ contentType: "application/json", json: { id: "canvas-video-remote" } });
+            return;
+        }
+        await route.fulfill({ contentType: "application/json", json: { status: "completed", url: "https://canvas-video-media.invalid/result.webm" } });
+    });
+    await page.route("https://canvas-video-media.invalid/result.webm", (route) => route.fulfill({ contentType: "video/webm", body: Buffer.from("canvas-video") }));
+    await page.getByRole("button", { name: "视频", exact: true }).click();
+    await expect(page.locator(".node-element")).toHaveCount(1);
+    await page.locator('[contenteditable="true"]').last().fill("Canvas durable video");
+    await page.getByRole("button", { name: "生成", exact: true }).click();
+    await expect.poll(async () => (await snapshot(page))[0]?.nodes?.some((node: any) => node.metadata?.generationRunId) || false).toBe(true);
+    await expect.poll(async () => (await snapshot(page))[0]?.nodes?.some((node: any) => node.metadata?.content) || false).toBe(true);
+    expect(posts).toBe(1);
+    const result = await page.evaluate(async () => {
+        const { useVideoRunStore } = await import("/src/stores/use-video-run-store.ts");
+        return useVideoRunStore.getState().runs[0];
+    });
+    expect(result.request.canvas).toMatchObject({ targetNodeId: (await snapshot(page))[0].nodes[0].id });
+    expect(result.task?.id).toBe("canvas-video-remote");
+    expect(result.video?.storageKey).toMatch(/^video:/);
+    expect(JSON.stringify(result)).not.toContain("canvas-video-test-key");
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect.poll(async () => (await snapshot(page))[0]?.nodes?.some((node: any) => node.metadata?.content) || false).toBe(true);
+    expect(posts).toBe(1);
+});
+
+test("canvas audio generation stores a durable run and rehydrates the result", async ({ page }) => {
+    await enterCanvas(page);
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const config = useConfigStore.getState().config;
+        useConfigStore.setState({
+            config: {
+                ...config, proxyEnabled: false, model: "canvas::canvas-audio", audioModel: "canvas::canvas-audio", audioFormat: "mp3",
+                channels: [{ id: "canvas", name: "Canvas Audio QA", baseUrl: "https://canvas-audio-provider.invalid", apiKey: "canvas-audio-test-key", apiFormat: "openai", models: [{ name: "canvas-audio", capability: "audio" }] }],
+            },
+        });
+    });
+    await page.route("https://canvas-audio-provider.invalid/**", (route) => route.fulfill({ contentType: "audio/mpeg", body: Buffer.from("canvas-audio") }));
+    await page.getByRole("button", { name: "配置", exact: true }).click();
+    await expect(page.locator(".node-element")).toHaveCount(1);
+    await page.locator('[contenteditable="true"]').last().fill("Canvas durable audio");
+    await page.getByRole("button", { name: "关闭节点编辑器", exact: true }).click();
+    await page.locator(".canvas-config-mode").getByText("音频", { exact: true }).click();
+    await page.getByRole("button", { name: "开始生成", exact: true }).click();
+    await expect.poll(async () => (await snapshot(page))[0]?.nodes?.some((node: any) => node.metadata?.generationRunId) || false).toBe(true);
+    await expect.poll(async () => (await snapshot(page))[0]?.nodes?.some((node: any) => node.metadata?.content) || false).toBe(true);
+    const result = await page.evaluate(async () => {
+        const { useAudioRunStore } = await import("/src/stores/use-audio-run-store.ts");
+        return useAudioRunStore.getState().runs[0];
+    });
+    const audioTarget = (await snapshot(page))[0].nodes.find((node: any) => node.metadata?.generationRunId === result.id);
+    expect(audioTarget?.id).toBe(result.request.canvas?.targetNodeId);
+    expect(result.audio?.storageKey).toMatch(/^audio:/);
+    expect(JSON.stringify(result)).not.toContain("canvas-audio-test-key");
+    await page.waitForTimeout(700);
+    await page.goto(`/tasks?kind=audio&run=${result.id}`);
+    await expect(page.getByTestId("audio-tasks")).toBeVisible();
+    await expect(page.getByTestId("audio-task-row")).toHaveCount(1);
+    await expect(page.getByTestId("audio-task-prompt")).toHaveText("Canvas durable audio");
+    await expect(page.getByTestId("audio-task-result")).toBeVisible();
+    await expect(page.locator("audio")).toHaveCount(1);
+    await page.reload();
+    await expect(page.getByTestId("audio-task-row")).toHaveCount(1);
+    await expect(page.getByTestId("audio-task-result")).toBeVisible();
+});
+
+test("audio task center retries a confirmed failure as a child run", async ({ page }) => {
+    await enterCanvas(page);
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const config = useConfigStore.getState().config;
+        useConfigStore.setState({
+            config: {
+                ...config, proxyEnabled: false, model: "canvas::canvas-audio-retry", audioModel: "canvas::canvas-audio-retry", audioFormat: "mp3",
+                channels: [{ id: "canvas", name: "Canvas Audio Retry QA", baseUrl: "https://canvas-audio-retry-provider.invalid", apiKey: "canvas-audio-retry-key", apiFormat: "openai", models: [{ name: "canvas-audio-retry", capability: "audio" }] }],
+            },
+        });
+    });
+    let posts = 0;
+    await page.route("https://canvas-audio-retry-provider.invalid/**", (route) => {
+        posts += 1;
+        if (posts === 1) {
+            return route.fulfill({ status: 500, contentType: "application/json", json: { error: { message: "synthetic audio failure" } } });
+        }
+        return route.fulfill({ contentType: "audio/mpeg", body: Buffer.from("canvas-audio-retry") });
+    });
+    await page.getByRole("button", { name: "配置", exact: true }).click();
+    await expect(page.locator(".node-element")).toHaveCount(1);
+    await page.locator('[contenteditable="true"]').last().fill("Canvas audio retry");
+    await page.getByRole("button", { name: "关闭节点编辑器", exact: true }).click();
+    await page.locator(".canvas-config-mode").getByText("音频", { exact: true }).click();
+    await page.getByRole("button", { name: "开始生成", exact: true }).click();
+    await expect.poll(async () => (await page.evaluate(async () => {
+        const { useAudioRunStore } = await import("/src/stores/use-audio-run-store.ts");
+        return useAudioRunStore.getState().runs[0]?.status;
+    }))).toBe("failed");
+    const failedId = await page.evaluate(async () => {
+        const { useAudioRunStore } = await import("/src/stores/use-audio-run-store.ts");
+        return useAudioRunStore.getState().runs[0]?.id;
+    });
+    await page.goto(`/tasks?kind=audio&run=${failedId}`);
+    await expect(page.getByTestId("audio-task-row")).toHaveCount(1);
+    await page.getByRole("button", { name: "使用原参数重试" }).click();
+    await page.getByRole("button", { name: "确认重试" }).click();
+    await expect.poll(async () => (await page.evaluate(async () => {
+        const { useAudioRunStore } = await import("/src/stores/use-audio-run-store.ts");
+        return useAudioRunStore.getState().runs;
+    })).length).toBe(2);
+    await expect.poll(async () => (await page.evaluate(async () => {
+        const { useAudioRunStore } = await import("/src/stores/use-audio-run-store.ts");
+        return useAudioRunStore.getState().runs.find((run) => run.retryOf)?.status;
+    }))).toBe("succeeded");
+    const runs = await page.evaluate(async () => {
+        const { useAudioRunStore } = await import("/src/stores/use-audio-run-store.ts");
+        return useAudioRunStore.getState().runs;
+    });
+    expect(posts).toBe(2);
+    expect(runs.find((run) => run.id === failedId)?.status).toBe("failed");
+    expect(runs.find((run) => run.retryOf === failedId)?.audio?.storageKey).toMatch(/^audio:/);
+    await expect(page.getByTestId("audio-task-result")).toBeVisible();
+});
+
+test("canvas text generation stores a durable streamed run and rehydrates the result", async ({ page }) => {
+    await enterCanvas(page);
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const config = useConfigStore.getState().config;
+        useConfigStore.setState({
+            config: {
+                ...config, proxyEnabled: false, model: "canvas::canvas-text", textModel: "canvas::canvas-text",
+                channels: [{ id: "canvas", name: "Canvas Text QA", baseUrl: "https://canvas-text-provider.invalid", apiKey: "canvas-text-test-key", apiFormat: "openai", models: [{ name: "canvas-text", capability: "text" }] }],
+            },
+        });
+    });
+    let posts = 0;
+    await page.route("https://canvas-text-provider.invalid/**", async (route) => {
+        posts += 1;
+        await route.fulfill({
+            status: 200,
+            contentType: "text/event-stream",
+            body: [
+                'data: {"type":"response.output_text.delta","delta":"Durable "}',
+                "",
+                'data: {"type":"response.output_text.delta","delta":"canvas text"}',
+                "",
+                'data: {"type":"response.output_text.done","text":"Durable canvas text"}',
+                "",
+                "data: [DONE]",
+                "",
+            ].join("\n"),
+        });
+    });
+    await page.getByRole("button", { name: "文本", exact: true }).click();
+    await expect(page.locator(".node-element")).toHaveCount(1);
+    await page.locator(".node-element").click();
+    await page.locator('[contenteditable="true"]').last().fill("Write durable text");
+    await page.getByRole("button", { name: "生成", exact: true }).click();
+    await expect.poll(async () => (await page.evaluate(async () => {
+        const { useTextRunStore } = await import("/src/stores/use-text-run-store.ts");
+        return useTextRunStore.getState().runs[0]?.status;
+    }))).toBe("succeeded");
+    const result = await page.evaluate(async () => {
+        const { useTextRunStore } = await import("/src/stores/use-text-run-store.ts");
+        return useTextRunStore.getState().runs[0];
+    });
+    expect(posts).toBe(1);
+    expect(result.content).toBe("Durable canvas text");
+    expect(JSON.stringify(result)).not.toContain("canvas-text-test-key");
+    expect((await snapshot(page))[0].nodes.some((node: any) => node.metadata?.content === "Durable canvas text")).toBe(true);
+    await page.goto(`/tasks?kind=text&run=${result.id}`);
+    await expect(page.getByTestId("text-tasks")).toBeVisible();
+    await expect(page.getByTestId("text-task-row")).toHaveCount(1);
+    await expect(page.getByTestId("text-task-prompt")).toHaveText("Write durable text");
+    await expect(page.getByTestId("text-task-result")).toContainText("Durable canvas text");
+    await page.reload();
+    await expect(page.getByTestId("text-task-result")).toContainText("Durable canvas text");
+    expect(posts).toBe(1);
+});
+
+test("text task center retries a confirmed failure as a child run", async ({ page }) => {
+    await enterCanvas(page);
+    await page.evaluate(async () => {
+        const { useConfigStore } = await import("/src/stores/use-config-store.ts");
+        const config = useConfigStore.getState().config;
+        useConfigStore.setState({
+            config: {
+                ...config, proxyEnabled: false, model: "canvas::canvas-text-retry", textModel: "canvas::canvas-text-retry",
+                channels: [{ id: "canvas", name: "Canvas Text Retry QA", baseUrl: "https://canvas-text-retry-provider.invalid", apiKey: "canvas-text-retry-key", apiFormat: "openai", models: [{ name: "canvas-text-retry", capability: "text" }] }],
+            },
+        });
+    });
+    let posts = 0;
+    await page.route("https://canvas-text-retry-provider.invalid/**", async (route) => {
+        posts += 1;
+        if (posts === 1) {
+            await route.fulfill({ status: 500, contentType: "application/json", json: { error: { message: "synthetic text failure" } } });
+            return;
+        }
+        await route.fulfill({
+            status: 200,
+            contentType: "text/event-stream",
+            body: ['data: {"type":"response.output_text.delta","delta":"Recovered text"}', "", "data: [DONE]", ""].join("\n"),
+        });
+    });
+    await page.getByRole("button", { name: "文本", exact: true }).click();
+    await expect(page.locator(".node-element")).toHaveCount(1);
+    await page.locator(".node-element").click();
+    await page.locator('[contenteditable="true"]').last().fill("Retry durable text");
+    await page.getByRole("button", { name: "生成", exact: true }).click();
+    await expect.poll(async () => (await page.evaluate(async () => {
+        const { useTextRunStore } = await import("/src/stores/use-text-run-store.ts");
+        return useTextRunStore.getState().runs[0]?.status;
+    }))).toBe("failed");
+    const failedId = await page.evaluate(async () => {
+        const { useTextRunStore } = await import("/src/stores/use-text-run-store.ts");
+        return useTextRunStore.getState().runs[0]?.id;
+    });
+    await page.goto(`/tasks?kind=text&run=${failedId}`);
+    await page.getByRole("button", { name: "使用原参数重试" }).click();
+    await page.getByRole("button", { name: "确认重试" }).click();
+    await expect.poll(async () => (await page.evaluate(async () => {
+        const { useTextRunStore } = await import("/src/stores/use-text-run-store.ts");
+        return useTextRunStore.getState().runs;
+    })).length).toBe(2);
+    await expect.poll(async () => (await page.evaluate(async () => {
+        const { useTextRunStore } = await import("/src/stores/use-text-run-store.ts");
+        return useTextRunStore.getState().runs.find((run) => run.retryOf)?.status;
+    }))).toBe("succeeded");
+    const runs = await page.evaluate(async () => {
+        const { useTextRunStore } = await import("/src/stores/use-text-run-store.ts");
+        return useTextRunStore.getState().runs;
+    });
+    expect(posts).toBe(2);
+    expect(runs.find((run) => run.id === failedId)?.status).toBe("failed");
+    expect(runs.find((run) => run.retryOf === failedId)?.content).toBe("Recovered text");
+    await expect(page.getByTestId("text-task-result")).toContainText("Recovered text");
 });
 
 for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 844 }, { width: 390, height: 568 }]) {

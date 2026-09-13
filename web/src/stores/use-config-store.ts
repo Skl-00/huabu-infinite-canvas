@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
 
-export type ApiCallFormat = "openai" | "gemini";
+export type ApiCallFormat = "openai" | "gemini" | "agnes";
 export type ModelCapability = "image" | "video" | "text" | "audio";
 export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh";
 
@@ -461,12 +461,39 @@ function normalizeChannels(config: AiConfig) {
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
+    if (apiFormat === "agnes") return "https://api.agnes-ai.cn/v1";
     if (apiFormat === "gemini") return GEMINI_BASE_URL;
     return OPENAI_BASE_URL;
 }
 
 function normalizeApiFormat(apiFormat: unknown): ApiCallFormat {
-    return apiFormat === "gemini" ? apiFormat : "openai";
+    return apiFormat === "gemini" || apiFormat === "agnes" ? apiFormat : "openai";
+}
+
+export function configureAgnesChannel(config: AiConfig, apiKey?: string): AiConfig {
+    const existing = config.channels.find((channel) => /^https:\/\/api\.agnes-ai\.cn(?:\/v1)?\/?$/.test(channel.baseUrl.trim()));
+    const presets: ChannelModel[] = [
+        { name: "agnes-2.5-flash", capability: "text" },
+        { name: "agnes-image-2.5-flash", capability: "image" },
+        { name: "agnes-video-2.5-flash", capability: "video" },
+    ];
+    const models = (existing?.models || []).map((model) => ({
+        ...model, capability: presets.find((preset) => preset.name === model.name)?.capability || model.capability,
+    }));
+    models.push(...presets.filter((preset) => !models.some((model) => model.name === preset.name)));
+    const channel = createModelChannel({
+        id: existing?.id, name: existing?.name || "Agnes",
+        baseUrl: "https://api.agnes-ai.cn/v1", apiKey: apiKey ?? existing?.apiKey ?? "", apiFormat: "agnes",
+        models,
+    });
+    const channels = existing ? config.channels.map((item) => item.id === existing.id ? channel : item) : [...config.channels, channel];
+    return {
+        ...config, channels, models: modelOptionsFromChannels(channels),
+        model: encodeChannelModel(channel.id, "agnes-image-2.5-flash"),
+        imageModel: encodeChannelModel(channel.id, "agnes-image-2.5-flash"),
+        textModel: encodeChannelModel(channel.id, "agnes-2.5-flash"),
+        videoModel: encodeChannelModel(channel.id, "agnes-video-2.5-flash"),
+    };
 }
 
 function uniqueModelOptions(models: string[]) {
