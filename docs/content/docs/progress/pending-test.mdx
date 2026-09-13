@@ -7,6 +7,12 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+## Local Data Backup
+
+- Settings > Local storage now exports canvases, assets, durable generation runs, legacy image/video history, and referenced local media as a ZIP.
+- Import validates the manifest and every referenced file before replacing the local workspace. Imported media receives new storage keys, canvas/media URLs are rehydrated, and provider/API/WebDAV settings remain unchanged.
+- Invalid packages are rejected without replacing the current workspace. Verify a real media-bearing backup after refresh, confirm the imported canvas previews remain readable, and confirm provider credentials are absent from `backup.json`.
+
 ## Durable Video Tasks
 
 - New video studio jobs write only to `video_runs`. Task type tabs, studio history, home activity and Agent status share those records. Old video history remains readable but is not automatically queried or resubmitted.

@@ -1,9 +1,10 @@
-import { Alert, Button, Progress, Spin } from "antd";
+import { Alert, App, Button, Progress, Spin } from "antd";
 import type { TFunction } from "i18next";
-import { Database, HardDrive, Layers3, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Database, Download, HardDrive, Layers3, RefreshCw, Upload } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { exportLocalBackup, importLocalBackup } from "@/services/local-backup";
 import { readLocalStorageUsage, type LocalStorageUsage } from "@/services/local-storage-usage";
 
 const storeLabelKeys: Record<string, string> = {
@@ -17,9 +18,12 @@ const storeLabelKeys: Record<string, string> = {
 };
 
 export function ConfigLocalStorage({ active }: { active: boolean }) {
+    const { message, modal } = App.useApp();
     const { t } = useTranslation();
+    const backupInputRef = useRef<HTMLInputElement>(null);
     const [usage, setUsage] = useState<LocalStorageUsage | null>(null);
     const [loading, setLoading] = useState(false);
+    const [backupBusy, setBackupBusy] = useState(false);
     const [error, setError] = useState("");
 
     const refresh = useCallback(async () => {
@@ -41,6 +45,41 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
     const indexedDbBytes = usage?.contentBytes ?? 0;
     const percent = usage ? Math.min(100, (usage.usage / usage.quota) * 100) : 0;
 
+    const exportBackup = async () => {
+        setBackupBusy(true);
+        try {
+            const result = await exportLocalBackup();
+            message.success(t("config.localStorage.backup.exported", result));
+        } catch (reason) {
+            message.error(reason instanceof Error ? reason.message : t("config.localStorage.backup.exportFailed"));
+        } finally {
+            setBackupBusy(false);
+        }
+    };
+
+    const confirmImport = (file: File) => {
+        modal.confirm({
+            title: t("config.localStorage.backup.importTitle"),
+            content: t("config.localStorage.backup.importDescription"),
+            okText: t("config.localStorage.backup.import"),
+            cancelText: t("common.cancel"),
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                setBackupBusy(true);
+                try {
+                    const result = await importLocalBackup(file);
+                    message.success(t("config.localStorage.backup.imported", result));
+                    await refresh();
+                } catch (reason) {
+                    message.error(reason instanceof Error ? reason.message : t("config.localStorage.backup.importFailed"));
+                    throw reason;
+                } finally {
+                    setBackupBusy(false);
+                }
+            },
+        });
+    };
+
     return (
         <div className="space-y-3">
             <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
@@ -55,6 +94,35 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
                     <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void refresh()}>
                         {t("config.localStorage.refresh")}
                     </Button>
+                </div>
+                <div className="mt-4 rounded-lg border border-dashed border-stone-300 p-3 dark:border-stone-700">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <div className="text-sm font-semibold">{t("config.localStorage.backup.title")}</div>
+                            <div className="mt-1 text-xs leading-5 text-stone-500">{t("config.localStorage.backup.description")}</div>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                            <Button icon={<Upload className="size-4" />} loading={backupBusy} disabled={backupBusy} onClick={() => backupInputRef.current?.click()}>
+                                {t("config.localStorage.backup.import")}
+                            </Button>
+                            <Button type="primary" icon={<Download className="size-4" />} loading={backupBusy} disabled={backupBusy} onClick={() => void exportBackup()}>
+                                {t("config.localStorage.backup.export")}
+                            </Button>
+                            <input
+                                ref={backupInputRef}
+                                type="file"
+                                accept=".zip,application/zip"
+                                aria-label={t("config.localStorage.backup.import")}
+                                className="hidden"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) confirmImport(file);
+                                    event.target.value = "";
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <div className="mt-2 text-[11px] text-stone-500">{t("config.localStorage.backup.security")}</div>
                 </div>
                 {error ? <Alert className="mt-4" type="error" showIcon message={t("config.localStorage.readFailed")} description={error} /> : null}
                 {!usage && loading ? (

@@ -7,7 +7,7 @@ description: Planned follow-up work
 
 - Image and video studios now use durable repositories. Scripted video jobs and legacy records still need an explicit recovery contract; do not guess remote status or automatically resubmit them.
 - Agnes Flash limits are now enforced for 720P, 4–12 seconds, up to five reference images, up to three reference audio clips, and no reference videos. Local video reference media still need an explicitly authorized public upload service; free-tier scheduling still needs separately confirmed boundaries, and must not silently add timeouts, retries or concurrency caps.
-- Include image/video tasks and referenced media in explicit backup/restore; improve large-history performance, asset versions, storyboards and editing handoff.
+- Improve large-history performance, asset versions, storyboards and editing handoff.
 - Continue the HuaBu-wide UI redesign using observed Kachang workflows without copying closed-source implementations, branding or restricted content.
 - Replace the Claude Code CLI adapter with a Claude Agent SDK adapter and improve the tool queue, following the [Local Agent Integration Plan](/docs/progress/local-agent-integration-plan).
 - Add Skill installation from web search, Skill resource-file management, and controlled local-memory persistence.
